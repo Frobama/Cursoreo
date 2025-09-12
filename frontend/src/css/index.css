@@ -42,16 +42,6 @@ h1{
     padding-left: 5px;
 }
 
-.login-container button{
-    background-color: transparent;
-    font-size: 10px;
-    border: none;
-    text-align: center;
-    justify-self: center;
-    margin-left: 5%;
-    margin-right: 5%;
-}
-
 .gradient-background{
     background: linear-gradient(180deg, #0c90dc, #0c6ea6, #181818);
     background-size: 180% 100%;
@@ -87,4 +77,15 @@ h1{
 
 img{
     height: 100px;
+}
+
+#loginButton{
+    background-color:#0c90dc;
+    color: white;
+    margin-left: 15%;
+    margin-right: 15%;
+    width: 70%;
+    height: 30px;
+    font-size: 14px;
+    border: none;
 }
