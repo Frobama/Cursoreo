@@ -43,7 +43,7 @@ async function fetchData() {
     localStorage.setItem("user", JSON.stringify(data));
 
     // Redirigir a otra página
-    window.location.href = '../src/pages/personal.html';
+    window.location.href = '../frontend/src/pages/personal.html';
 
   } catch (err) {
     alert("Credenciales incorrectas o error de conexión");
