@@ -39,6 +39,9 @@ async function fetchData() {
       return;
     }
 
+    data.email = email
+    data.password = pass
+    
     // Guardar la info del usuario
     localStorage.setItem("user", JSON.stringify(data));
 
