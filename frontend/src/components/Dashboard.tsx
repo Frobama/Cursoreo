@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './Dashboard.module.css';
+import MallaVisualizer from './MallaVisualizer';
 
 // --- TIPOS DE DATOS ---
 type RamoAvance = {
@@ -27,6 +28,10 @@ type Carrera = {
     catalogo: string;
 };
 
+type MallasPorCarrera = {
+    [codigoCarrera: string]: CarreraMalla[]
+};
+
 type DashboardProps = {
     userData: {
         rut: string;
@@ -39,6 +44,9 @@ type DashboardProps = {
 const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
 
     const [ramosInscritos, setRamosInscritos] = useState<RamoExtend[]>([]);
+    const [mallasCargadas, setMallasCargadas] = useState<MallasPorCarrera>({});
+    const [carreraActiva, setCarreraActiva] = useState<Carrera | null>(null);
+    const [mostrarMalla, setMostrarMalla] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -47,19 +55,25 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
             try {
                 // CARGAR TODAS LAS MALLAS Y CREAR UN MAPA
                 const mapaNombres = new Map<string, string>();
+                const nuevasMallasCargadas: MallasPorCarrera = {};
                 
                 const promesasMallas = userData.carreras.map(carrera =>
                     fetch(`http://localhost:3001/api/mallas?codigoCarrera=${carrera.codigo}&catalogo=${carrera.catalogo}`)
                 );
                 const respuestasMallas = await Promise.all(promesasMallas);
 
-                for (const res of respuestasMallas) {
+                for (let i = 0; i < respuestasMallas.length; i++) {
+                    const res = respuestasMallas[i];
+                    const carrera = userData.carreras[i];
+
                     if (!res.ok) {
                         console.error("Hubo un error al cargar una de las mallas.");
                         continue; // Salta a la siguiente si una falla
                     }
                     const malla: CarreraMalla[] = await res.json();
                     if (Array.isArray(malla)) {
+                        nuevasMallasCargadas[carrera.codigo] = malla;
+
                         malla.forEach(asignatura => {
                             const codigoNormalizado = asignatura.codigo.trim().toUpperCase();
                             if (!mapaNombres.has(codigoNormalizado)) {
@@ -68,6 +82,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                         });
                     }
                 }
+                setMallasCargadas(nuevasMallasCargadas);
 
                 // CARGAR TODO EL AVANCE CURRICULAR 
                 const todosRamos: RamoAvance[] = [];
@@ -97,6 +112,10 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                 
                 setRamosInscritos(inscritosEnriquecidos);
 
+                if (userData.carreras.length > 0) {
+                    setCarreraActiva(userData.carreras[0]);
+                }
+
             } catch (err: any) {
                 setError(err.message);
             } finally {
@@ -123,32 +142,51 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                         <p>{userData.rut || "RUT no disponible"}</p>
                         <p>{userData.email}</p>
                         <p>Universidad Católica del Norte</p>
+                        {carreraActiva && (
+                            <p>Carrera Actual: {carreraActiva.nombre}</p>
+                        )}
                         <button className={styles.buttonLogout} onClick={onLogout}>Cerrar Sesión</button>
                     </div>
                 </div>
 
                 <div className={styles.buttonDiv}>
+                    <button
+                        onClick={() => setMostrarMalla(!mostrarMalla)}
+                        className={styles.buttonEgreso}
+                    >
+                        {mostrarMalla ? 'Ver Ramos Inscritos' : 'Ver Malla Completa'}
+                    </button>
                     <button onClick={handleProyectionClick} className={styles.buttonEgreso}>
                         Proyectar egreso
                     </button>
                 </div>
 
-                <div className={styles.ramoContainer}>
-                    <h3>Mis Ramos Inscritos</h3>
-                    {isLoading && <p>Cargando tus ramos...</p>}
-                    {error && <p style={{ color: 'red' }}>{error}</p>}
+                {mostrarMalla ? (
+                    carreraActiva && mallasCargadas[carreraActiva.codigo] ? (
+                        <MallaVisualizer malla={mallasCargadas[carreraActiva.codigo]} />
+                    ) : (
+                        <p>Cargando o no se pudo encontrar la malla.</p>
+                    )
+                ) : (
+                    <div className={styles.ramoContainer}>
+                        <h3>Mis Ramos Inscritos</h3>
+                        {isLoading && <p>Cargando tus ramos...</p>}
+                        {error && <p style={{ color: 'red' }}>{error}</p>}
 
-                    {!isLoading && !error && ramosInscritos.length === 0 && <p>No tienes ramos inscritos actualmente</p>}
+                        {!isLoading && !error && ramosInscritos.length === 0 && <p>No tienes ramos inscritos actualmente</p>}
 
-                    {ramosInscritos.map((ramo, index) => (
-                        <div className={styles.ramo} key={`${ramo.course}-${ramo.nrc || index}`}>
-                            <h2>{ramo.nombreAsignatura}</h2>
-                            <p>{ramo.course}</p>
-                            <p>Estado: {ramo.status || "Sin Estado"}</p>
-                            <p>NRC: {ramo.nrc || "Sin NRC"}</p>
-                        </div>
-                    ))}
-                </div>
+                        {ramosInscritos.map((ramo, index) => (
+                            <div className={styles.ramo} key={`${ramo.course}-${ramo.nrc || index}`}>
+                                <h2>{ramo.nombreAsignatura}</h2>
+                                <p>{ramo.course}</p>
+                                <p>Estado: {ramo.status || "Sin Estado"}</p>
+                                <p>NRC: {ramo.nrc || "Sin NRC"}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                
             </div>
         </>
     );

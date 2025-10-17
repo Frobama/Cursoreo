@@ -86,3 +86,9 @@
     margin-top: 0;
     margin-bottom: 5px;
 }
+
+.carreraActivaInfo {
+    text-align: center;
+    margin: -10px 0 10px 0;
+    color: #333;
+}
