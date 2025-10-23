@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import styles from './Dashboard.module.css';
 import MallaVisualizer from './MallaVisualizer';
+import { planSemesters } from '../utils/planner';
+import type { Ramo as PlannerRamo, PlanSemester } from '../utils/planner';
 
 // --- TIPOS DE DATOS ---
 type RamoAvance = {
@@ -49,6 +51,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
     const [mostrarMalla, setMostrarMalla] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [plan, setPlan] = useState<PlanSemester[] | null>(null);
+    const [planErrors, setPlanErrors] = useState<string[] | null>(null);
 
     useEffect(() => {
         const fetchDatosCompletos = async () => {
@@ -98,7 +102,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                         console.error(`Error al obtener el avance para la carrera ${carrera.codigo}`);
                     }
                 }
-
+                console.log("Ramos obtenidos:", nuevasMallasCargadas);
                 // FILTRAR LOS RAMOS INSCRITOS
                 const inscritosEnriquecidos = todosRamos
                     .filter(ramo => ramo.status === 'INSCRITO')
@@ -111,7 +115,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                     });
                 
                 setRamosInscritos(inscritosEnriquecidos);
-
+                
                 if (userData.carreras.length > 0) {
                     setCarreraActiva(userData.carreras[0]);
                 }
@@ -127,9 +131,41 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
     }, [userData]);
 
     const handleProyectionClick = () => {
-        console.log("Navegando a la proyección...");
-    };
+        // Calcular plan de egreso con la malla activa y los ramos inscritos
+        if (!carreraActiva) return;// Acá debería ir un pequeño menú para seleccionar carrera
+        const malla = mallasCargadas[carreraActiva.codigo]; //Acá entre los [] debería ir la selección de carrera
+        if (!malla) return;
+        console.log("Malla para planificar:", malla);
+        // convertir la malla al tipo que espera el planner
+        const mallaPlanner: PlannerRamo[] = malla.map(r => {
+            const raw = (r as any).prereq;
+            let prereqArr: string[] = [];
+            if (Array.isArray(raw)) {
+                prereqArr = raw.map((s: any) => String(s).trim().toUpperCase()).filter(Boolean);
+            } else if (typeof raw === 'string' && raw.trim() !== '') {
+                prereqArr = raw.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+            }
 
+            return {
+                codigo: r.codigo.trim().toUpperCase(),
+                asignatura: r.asignatura,
+                creditos: r.creditos,
+                nivel: r.nivel,
+                prereq: prereqArr
+            } as PlannerRamo;
+        });
+
+        const completedSet = new Set<string>(ramosInscritos.map(r => r.course.trim().toUpperCase()));
+
+        const { plan: computedPlan, remaining, errors } = planSemesters(mallaPlanner, completedSet, 24);
+        setPlan(computedPlan);
+        setPlanErrors(errors.length ? errors : null);
+        if (remaining.length) {
+            // Si quedan ramos sin planificar, añadir aviso a errores
+            setPlanErrors(prev => [...(prev ?? []), `Quedan sin planificar: ${remaining.join(', ')}`]);
+        }
+    };
+    
     return (
         <>
             <div className={styles.backWhite}>
@@ -160,6 +196,28 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                         Proyectar egreso
                     </button>
                 </div>
+
+                {planErrors && (
+                    <div style={{ color: 'red' }}>
+                        {planErrors.map((e, i) => <div key={i}>{e}</div>)}
+                    </div>
+                )}
+
+                {plan && (
+                    <div className={styles.planContainer}>
+                        <h3>Plan sugerido</h3>
+                        {plan.map(s => (
+                            <div key={s.semester}>
+                                <h4>Semestre {s.semester} - Créditos: {s.totalCredits}</h4>
+                                <ul>
+                                    {s.courses.map(c => (
+                                        <li key={c.codigo}>{c.codigo} - {c.asignatura} ({c.creditos}cr)</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {mostrarMalla ? (
                     carreraActiva && mallasCargadas[carreraActiva.codigo] ? (
