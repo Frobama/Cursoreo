@@ -40,7 +40,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             const userData = {...data, email: correo};
 
             localStorage.setItem("user", JSON.stringify(userData));
-
+            
             onLoginSuccess(userData);
             console.log("Login exitoso:", userData);
         } catch (err:any) {
@@ -50,7 +50,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         }
         
     };
-
+    
     return (
         <>
             <div className={styles.loginContainer}>
