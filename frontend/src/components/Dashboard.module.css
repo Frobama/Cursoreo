@@ -16,7 +16,7 @@
 .container{
     display: flex;
     margin: 0 5%;
-    gap: 20px;
+    gap: 25px;
     text-align: left;
     align-items: center;
     justify-content: center;
@@ -27,7 +27,11 @@
 }
 
 .buttonDiv{
-    padding: 25px;
+    display:flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 30px;
 }
 
 .buttonEgreso{

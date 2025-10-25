@@ -46,6 +46,7 @@ type DashboardProps = {
 const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
 
     const [ramosInscritos, setRamosInscritos] = useState<RamoExtend[]>([]);
+    const [ramosAprobados, setRamosAprobados] = useState<RamoExtend[]>([]);
     const [mallasCargadas, setMallasCargadas] = useState<MallasPorCarrera>({});
     const [carreraActiva, setCarreraActiva] = useState<Carrera | null>(null);
     const [mostrarMalla, setMostrarMalla] = useState(false);
@@ -101,20 +102,32 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                     } else {
                         console.error(`Error al obtener el avance para la carrera ${carrera.codigo}`);
                     }
-                }
-                console.log("Ramos obtenidos:", nuevasMallasCargadas);
+                }   
+                console.log("Todos los ramos obtenidos:", todosRamos);
                 // FILTRAR LOS RAMOS INSCRITOS
                 const inscritosEnriquecidos = todosRamos
                     .filter(ramo => ramo.status === 'INSCRITO')
                     .map(ramoInscrito => {
                         const codigoNormalizado = ramoInscrito.course.trim().toUpperCase();
-                        return {
+                        return {   //Aca poner un if en un for en todos ramos para ver si el ramo inscrito no tiene una copia que está aprobada, porque eso significa que ya lo está (aunque no se si sea necesario)
                             ...ramoInscrito,
                             nombreAsignatura: mapaNombres.get(codigoNormalizado) || "Nombre no encontrado"
                         };
                     });
-                
                 setRamosInscritos(inscritosEnriquecidos);
+
+                // FILTRAR LOS RAMOS APROBADOS
+                const aprobadosEnriquecidos = todosRamos
+                    .filter(ramo => ramo.status === 'APROBADO')
+                    .map(ramoAprobado => {
+                        const codigoNormalizado = ramoAprobado.course.trim().toUpperCase();
+                        return {
+                            ...ramoAprobado,
+                            nombreAsignatura: mapaNombres.get(codigoNormalizado) || "Nombre no encontrado"
+                        };
+                    });
+                setRamosAprobados(aprobadosEnriquecidos);
+                
                 
                 if (userData.carreras.length > 0) {
                     setCarreraActiva(userData.carreras[0]);
@@ -156,7 +169,10 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
         });
 
         const completedSet = new Set<string>(ramosInscritos.map(r => r.course.trim().toUpperCase()));
+        const approvedSet = new Set<string>(ramosAprobados.map(r => r.course.trim().toUpperCase()));
 
+        console.log("Ramos inscritos (completados):", completedSet);
+        console.log("Ramos aprobados:", ramosAprobados);
         const { plan: computedPlan, remaining, errors } = planSemesters(mallaPlanner, completedSet, 24);
         setPlan(computedPlan);
         setPlanErrors(errors.length ? errors : null);
@@ -173,7 +189,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                 <h1 className={styles.blackH1}>Área Personal</h1>
 
                 <div className={styles.container}>
-                    <img src="./src/assets/profilepic.png" style={{ height: '100px' }} alt="Foto de perfil" />
+                    <img src="./src/assets/profilepic.png" style={{ height: '110px' }} alt="Foto de perfil" />
                     <div className={styles.infoDiv}>
                         <p>{userData.rut || "RUT no disponible"}</p>
                         <p>{userData.email}</p>
@@ -185,7 +201,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                     </div>
                 </div>
 
-                <div className={styles.buttonDiv}>
+                <div className={styles.buttonDiv }>
                     <button
                         onClick={() => setMostrarMalla(!mostrarMalla)}
                         className={styles.buttonEgreso}

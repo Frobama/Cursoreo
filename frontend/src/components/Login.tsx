@@ -42,7 +42,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             localStorage.setItem("user", JSON.stringify(userData));
 
             onLoginSuccess(userData);
-        
+            console.log("Login exitoso:", userData);
         } catch (err:any) {
             setError(err.message || "Credenciales incorrectas o error en la conexión");
         } finally {

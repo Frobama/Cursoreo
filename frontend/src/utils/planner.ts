@@ -30,11 +30,17 @@ export function buildGraph(malla: Ramo[]) {
   const map = new Map<string, Node>();
   for (const r of malla) {
     map.set(r.codigo, { ramo: r, indegree: 0, deps: [] });
-    console.log(`Added node for course: ${r.prereq} in ${r.asignatura}`);
+    
   }
 
   for (const r of malla) {
     const raw = r.prereq;
+    let falseprereq: string[] = ["DDOC-01184", "EAIN-01184", "UNFG-01183", "UNFG-01184", "UNFI-01001", 
+      "UNFI-01184", "DDOC-00102", "DCTE-00002", "UNFG-02294", "DATE-00015", "DCCB-00261", "DCTE-00002", 
+      "SSED-00202", "UNFV-00001", "UNFV-01001", "UNFG-03294", "UNFV-03003", "ECIN-00805", "ECIN-08616",
+      "ECIN-00512", "ECIN-00618", "DAIS-00305", "ECIN-00301", "ECIN-00606", "ECIN-00700", "ECIN-00703",
+      "ECIN-00800", "ECIN-00803", "ECIN-00804", "ECIN-00806", "ECIN-00808", "ECIN-00809", "ECIN-00901",
+      "ECIN-00903", "ECIN-00905", "ECIN-00907", "ECIN-00910", "ECIN-08606"];
     let prereqs: string[] = [];
     if (Array.isArray(raw)) {
       prereqs = raw.map(s => String(s).trim().toUpperCase()).filter(Boolean);
@@ -43,48 +49,82 @@ export function buildGraph(malla: Ramo[]) {
     }
 
     for (const p of prereqs) {
-      const pn = map.get(p);
       const rn = map.get(r.codigo);
       if (!rn) continue;
+
+      // Si el prerequisito está en la lista de excepciones, lo ignoramos completamente
+      if (falseprereq.includes(p)) {
+        // Ignorar prerequisito falso
+        continue;
+      }
+
+      const pn = map.get(p);
       if (pn) {
         pn.deps.push(r.codigo);
         rn.indegree++;
       } else {
-        // prereq no encontrado: lo contamos igual para detectar error luego
+        // prereq no encontrado: lo contamos para detectar error luego
         rn.indegree++;
       }
     }
   }
-  console.log("Graph built:", map);
+  
   return map;
 }
 
 export function hasCycle(graph: Map<string, Node>) {
   const q: string[] = [];
   const indeg = new Map<string, number>();
+  // Track processed nodes to identify cycle members
+  const processed = new Set<string>();
+
+  // Initialize indegrees and queue
   for (const [k, v] of graph) {
     indeg.set(k, v.indegree);
     if (v.indegree === 0) q.push(k);
+    
   }
+
   let removed = 0;
   while (q.length) {
     const cur = q.shift()!;
+    processed.add(cur);
     removed++;
+    
+    
     for (const nxt of graph.get(cur)!.deps) {
-      indeg.set(nxt, (indeg.get(nxt) ?? 0) - 1);
-      if ((indeg.get(nxt) ?? 0) === 0) q.push(nxt);
+      const newIndeg = (indeg.get(nxt) ?? 0) - 1;
+      indeg.set(nxt, newIndeg);
+      
+      if (newIndeg === 0) {
+        q.push(nxt);
+        
+      }
     }
   }
-  if (removed !== graph.size) {
-    console.log(`Cycle detected: removed ${removed} out of ${graph.size} nodes`);
-  }
+
+  {/*if (removed !== graph.size) {
+    console.log("\n=== CICLO DETECTADO ===");
+    console.log("Ramos involucrados en ciclos:");
+    for (const [k, v] of graph) {
+      if (!processed.has(k)) {
+        const node = graph.get(k)!;
+        console.log(`\nRamo: ${k} (${node.ramo.asignatura})`);
+        console.log(`  Prerrequisitos:`, normalizePrereqs(node.ramo.prereq));
+        console.log(`  Es prerrequisito de:`, node.deps);
+        console.log(`  Indegree final:`, indeg.get(k));
+      }
+    }
+    console.log("=====================\n");
+  }*/}
+
   return removed !== graph.size;
 }
 
 export function planSemesters(
   malla: Ramo[],
   completedSet: Set<string>,
-  maxCreditsPerSemester = 30
+  maxCreditsPerSemester = 35
 ): { plan: PlanSemester[]; remaining: string[]; errors: string[] } {
   const graph = buildGraph(malla);
   const errors: string[] = [];
