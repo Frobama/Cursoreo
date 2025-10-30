@@ -63,6 +63,7 @@ app.get('/api/mallas', async (req, res) => {
 });
 
 // Modificar el endpoint /api/avance
+// Modificar el endpoint /api/avance
 app.get('/api/avance', async (req, res) => {
     const { rut, codcarrera, catalogo } = req.query;
 
@@ -71,35 +72,71 @@ app.get('/api/avance', async (req, res) => {
     }
 
     try {
-        // 1. Obtener la malla
+        // 1. Obtener la malla (sin cambios)
         const mallaResponse = await axios.get(
             `https://losvilos.ucn.cl/hawaii/api/mallas?${codcarrera}-${catalogo}`,
             { headers: { 'X-HAWAII-AUTH': 'jf400fejof13f' } }
         );
         const malla: RamoMalla[] = mallaResponse.data;
 
-        // 2. Obtener el avance
+        // 2. Obtener el avance (sin cambios)
         const avanceResponse = await axios.get(
             'https://puclaro.ucn.cl/eross/avance/avance.php',
             { params: { rut, codcarrera } }
         );
         const avance: RamoAvance[] = avanceResponse.data;
 
-        // 3. Combinar datos
+        // --- INICIO DE LA LÓGICA DE DEDUPLICACIÓN INTELIGENTE ---
+
+        // 3a. Definir la prioridad de los estados
+        const statusPriority: { [key: string]: number } = {
+            'APROBADO': 3,
+            'INSCRITO': 2,
+            'REPROBADO': 1,
+        };
+
+        // 3b. Crear un mapa para guardar el mejor ramo del avance encontrado para cada código
+        const avanceUnicoMap = new Map<string, RamoAvance>();
+
+        for (const ramo of avance) {
+            if (!ramo || !ramo.course) continue;
+            
+            const codigoNormalizado = ramo.course.trim().toUpperCase();
+            const estadoActual = String(ramo.status || "").trim().toUpperCase();
+            const prioridadActual = statusPriority[estadoActual] || 0;
+
+            const ramoExistente = avanceUnicoMap.get(codigoNormalizado);
+
+            if (!ramoExistente) {
+                avanceUnicoMap.set(codigoNormalizado, ramo);
+            } else {
+                const estadoExistente = String(ramoExistente.status || "").trim().toUpperCase();
+                const prioridadExistente = statusPriority[estadoExistente] || 0;
+                
+                if (prioridadActual > prioridadExistente) {
+                    avanceUnicoMap.set(codigoNormalizado, ramo);
+                }
+            }
+        }
+        
+        // --- FIN DE LA LÓGICA DE DEDUPLICACIÓN ---
+
+        // 4. Combinar la malla con los datos de avance únicos y de mayor prioridad
         const ramosConEstado: RamoAvanceCompleto[] = malla.map(ramoMalla => {
-            const codigoMalla = ramoMalla.codigo.trim().toUpperCase();
-            const ramoAvance = avance.find(a => 
-                a.course.trim().toUpperCase() === codigoMalla
-            );
+            const codigoMallaNormalizado = ramoMalla.codigo.trim().toUpperCase();
+            // Buscamos en nuestro nuevo mapa de ramos únicos
+            const ramoAvanceUnico = avanceUnicoMap.get(codigoMallaNormalizado);
 
             return {
                 codigo: ramoMalla.codigo,
                 asignatura: ramoMalla.asignatura,
                 creditos: ramoMalla.creditos,
                 nivel: ramoMalla.nivel,
-                status: ramoAvance?.status || 'PENDIENTE',
-                nrc: ramoAvance?.nrc,
-                period: ramoAvance?.period
+                status: ramoAvanceUnico?.status || 'PENDIENTE',
+                nrc: ramoAvanceUnico?.nrc,
+                period: ramoAvanceUnico?.period
+                // Aquí puedes añadir la propiedad 'prereq' si la necesitas en el frontend
+                // prereq: ramoMalla.prereq
             };
         });
 

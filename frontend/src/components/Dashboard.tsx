@@ -9,33 +9,21 @@ import {
 } from "../utils/localStorageManager";
 
 // --- TIPOS DE DATOS ---
-type RamoAvance = {
-  course: string;
-  status: string;
-  nrc: string;
-};
-
-type CarreraMalla = {
+export type RamoCompleto = {
   codigo: string;
   asignatura: string;
   creditos: number;
   nivel: number;
-  prereq: string;
-};
-
-// Ramo de avance + el nombre que encontramos
-export type RamoExtend = RamoAvance & {
-  nombreAsignatura: string;
+  status: string;
+  nrc?: string;
+  period?: string;
+  prereq?: string | string[]; // Añadido para compatibilidad con planner
 };
 
 type Carrera = {
   nombre: string;
   codigo: string;
   catalogo: string;
-};
-
-type MallasPorCarrera = {
-  [codigoCarrera: string]: CarreraMalla[];
 };
 
 type DashboardProps = {
@@ -47,36 +35,10 @@ type DashboardProps = {
   onLogout: () => void;
 };
 
-const filterAndEnrinchRamos = (
-    todosRamos: RamoAvance[],
-    statusToFilter: string,
-    mapaNombres: Map<string, string>
-): RamoExtend[] => {
-    const ramosFiltrados = todosRamos.filter(
-        (ramo) => String(ramo.status || "").trim().toUpperCase() === statusToFilter
-    );
-
-    const ramosUnicos: RamoExtend[] = [];
-    const codigosVistos = new Set<string>();
-
-    for (const ramo of ramosFiltrados) {
-        const codigoNormalizado = ramo.course.trim().toUpperCase();
-        if (!codigosVistos.has(codigoNormalizado)) {
-            codigosVistos.add(codigoNormalizado);
-            ramosUnicos.push({
-                ...ramo,
-                nombreAsignatura: mapaNombres.get(codigoNormalizado) || `(${ramo.course})`
-            });
-        }
-    }
-
-    return ramosUnicos;
-};
-
 const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
-  const [ramosInscritos, setRamosInscritos] = useState<RamoExtend[]>([]);
-  const [ramosAprobados, setRamosAprobados] = useState<RamoExtend[]>([]);
-  const [mallasCargadas, setMallasCargadas] = useState<MallasPorCarrera>({});
+  const [ramosInscritos, setRamosInscritos] = useState<RamoCompleto[]>([]);
+  const [ramosAprobados, setRamosAprobados] = useState<RamoCompleto[]>([]);
+  const [mallaCompleta, setMallaCompleta] = useState<RamoCompleto[]>([]);
   const [carreraActiva, setCarreraActiva] = useState<Carrera | null>(null);
   const [mostrarMalla, setMostrarMalla] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,84 +49,30 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
   useEffect(() => {
     const fetchDatosCompletos = async () => {
       try {
-        const cachedData = getAvanceCurricular(userData.rut);
-        if (cachedData) {
-          setRamosInscritos(cachedData.ramosInscritos);
-          setRamosAprobados(cachedData.ramosAprobados);
+        const carreraActual = userData.carreras.length > 0 ? userData.carreras[0] : null;
+        if (!carreraActual) {
+          throw new Error("No se encontró una carrera para el usuario.");
         }
-        // CARGAR TODAS LAS MALLAS Y CREAR UN MAPA
-        const mapaNombres = new Map<string, string>();
-        const nuevasMallasCargadas: MallasPorCarrera = {};
+        setCarreraActiva(carreraActual);
 
-        const promesasMallas = userData.carreras.map((carrera) =>
-          fetch(
-            `http://localhost:3001/api/mallas?codigoCarrera=${carrera.codigo}&catalogo=${carrera.catalogo}`
-          )
+        const res = await fetch(
+          `http://localhost:3001/api/avance?rut=${userData.rut}&codcarrera=${carreraActual.codigo}&catalogo=${carreraActual.catalogo}`
         );
-        const respuestasMallas = await Promise.all(promesasMallas);
 
-        for (let i = 0; i < respuestasMallas.length; i++) {
-          const res = respuestasMallas[i];
-          const carrera = userData.carreras[i];
-
-          if (!res.ok) {
-            console.error("Hubo un error al cargar una de las mallas.");
-            continue; // Salta a la siguiente si una falla
-          }
-          const malla: CarreraMalla[] = await res.json();
-
-          if (Array.isArray(malla)) {
-            nuevasMallasCargadas[carrera.codigo] = malla;
-
-            malla.forEach((asignatura) => {
-              const codigoNormalizado = asignatura.codigo.trim().toUpperCase();
-              if (!mapaNombres.has(codigoNormalizado)) {
-                mapaNombres.set(codigoNormalizado, asignatura.asignatura);
-              }
-            });
-          }
-        }
-        setMallasCargadas(nuevasMallasCargadas);
-        
-        const todosRamos: RamoAvance[] = [];
-        
-        if (!cachedData) {
-          // CARGAR TODO EL AVANCE CURRICULAR
-
-          for (const carrera of userData.carreras) {
-            const res = await fetch(
-              `http://localhost:3001/api/avance?rut=${userData.rut}&codcarrera=${carrera.codigo}`
-            );
-            if (res.ok) {
-              const ramosCarrera: RamoAvance[] = await res.json();
-              if (Array.isArray(ramosCarrera)) {
-                todosRamos.push(...ramosCarrera);
-              }
-            } else {
-              console.error(
-                `Error al obtener el avance para la carrera ${carrera.codigo}`
-              );
-            }
-          }
-          console.log("Todos los ramos obtenidos:", todosRamos);
-          // FILTRAR LOS RAMOS INSCRITOS
-          const inscritosFinal = filterAndEnrinchRamos(todosRamos, "INSCRITO", mapaNombres);
-          const aprobadosFinal = filterAndEnrinchRamos(todosRamos, "APROBADO", mapaNombres);
-
-          setRamosInscritos(inscritosFinal);
-          setRamosAprobados(aprobadosFinal);
-
-          saveAvanceCurricular({
-            rut: userData.rut,
-            ramosInscritos: inscritosFinal,
-            ramosAprobados: aprobadosFinal,
-            lastUpdate: new Date().toISOString()
-          });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || "No se pudo obtener el avance curricular combinado.");
         }
 
-        if (userData.carreras.length > 0) {
-            setCarreraActiva(userData.carreras[0]);
-        }
+        const avanceCombinado: RamoCompleto[] = await res.json();
+        console.log("Avance combinado: ", avanceCombinado)
+        const inscritos = avanceCombinado.filter(ramo => ramo.status === 'INSCRITO');
+        const aprobados = avanceCombinado.filter(ramo => ramo.status === 'APROBADO');
+
+        setRamosInscritos(inscritos);
+        setRamosAprobados(aprobados);
+        setMallaCompleta(avanceCombinado);
+
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -176,15 +84,14 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
   }, [userData]);
 
   const handleProyectionClick = () => {
-    // Calcular plan de egreso con la malla activa y los ramos inscritos
-    if (!carreraActiva) return; // Acá debería ir un pequeño menú para seleccionar carrera
-    const malla = mallasCargadas[carreraActiva.codigo]; //Acá entre los [] debería ir la selección de carrera
-    if (!malla) return;
+    if (!carreraActiva || !mallaCompleta.length) return;
+    const malla = mallaCompleta;
+    
     console.log("Malla para planificar:", malla);
 
     // convertir la malla al tipo que espera el planner
     const mallaPlanner: PlannerRamo[] = malla.map((r) => {
-      const raw = (r as any).prereq;
+      const raw = r.prereq;
       let prereqArr: string[] = [];
       if (Array.isArray(raw)) {
         prereqArr = raw
@@ -207,10 +114,10 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
     });
 
     const completedSet = new Set<string>(
-      ramosInscritos.map((r) => r.course.trim().toUpperCase())
+      ramosInscritos.map((r) => r.codigo.trim().toUpperCase())
     );
     const approvedSet = new Set<string>(
-      ramosAprobados.map((r) => r.course.trim().toUpperCase())
+      ramosAprobados.map((r) => r.codigo.trim().toUpperCase())
     );
 
     const {
@@ -221,7 +128,6 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
     setPlan(computedPlan);
     setPlanErrors(errors.length ? errors : null);
     if (remaining.length) {
-      // Si quedan ramos sin planificar, añadir aviso a errores
       setPlanErrors((prev) => [
         ...(prev ?? []),
         `Quedan sin planificar: ${remaining.join(", ")}`,
@@ -296,8 +202,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
         )}
 
         {mostrarMalla ? (
-          carreraActiva && mallasCargadas[carreraActiva.codigo] ? (
-            <MallaVisualizer malla={mallasCargadas[carreraActiva.codigo]} />
+          carreraActiva && mallaCompleta.length > 0 ? (
+            <MallaVisualizer malla={mallaCompleta} />
           ) : (
             <p>Cargando o no se pudo encontrar la malla.</p>
           )
@@ -311,13 +217,13 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
               <p>No tienes ramos inscritos actualmente</p>
             )}
 
-            {ramosInscritos.map((ramo, index) => (
+            {ramosInscritos.map((ramo) => (
               <div
                 className={styles.ramo}
-                key={`${ramo.course}-${ramo.nrc || index}`}
+                key={`${ramo.codigo}-${ramo.nrc}`}
               >
-                <h2>{ramo.nombreAsignatura}</h2>
-                <p>{ramo.course}</p>
+                <h2>{ramo.asignatura}</h2>
+                <p>{ramo.codigo}</p>
                 <p>Estado: {ramo.status || "Sin Estado"}</p>
                 <p>NRC: {ramo.nrc || "Sin NRC"}</p>
               </div>

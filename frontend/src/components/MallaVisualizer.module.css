@@ -39,6 +39,7 @@
     cursor: pointer;
     transition: transform 0.2s ease-in-out;
     margin: 10px;
+    border-left: 5px solid transparent;
 }
 
 .ramoCard:hover {
@@ -64,4 +65,18 @@
     color: #0c90dc;
     margin: 0;
     font-weight: 600;
+}
+
+.statusPendiente {
+    border-left-color: #a6a6a6; /* Un gris neutro para los pendientes */
+}
+
+.statusAprobado {
+    background-color: #e6f4ea; /* Fondo verde claro */
+    border-left-color: #34c759; /* Borde verde oscuro */
+}
+
+.statusInscrito {
+    background-color: #e0f2fe; /* Fondo azul claro */
+    border-left-color: #0c90dc; /* Borde azul oscuro */
 }
