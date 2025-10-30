@@ -76,6 +76,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                         continue; // Salta a la siguiente si una falla
                     }
                     const malla: CarreraMalla[] = await res.json();
+                    
                     if (Array.isArray(malla)) {
                         nuevasMallasCargadas[carrera.codigo] = malla;
 
@@ -103,36 +104,45 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                         console.error(`Error al obtener el avance para la carrera ${carrera.codigo}`);
                     }
                 }   
-                console.log("Todos los ramos obtenidos:", todosRamos);
-                // FILTRAR LOS RAMOS INSCRITOS
-                const inscritosEnriquecidos = todosRamos
-                    .filter(ramo => ramo.status === 'INSCRITO')
-                    .map(ramoInscrito => {
-                        const codigoNormalizado = ramoInscrito.course.trim().toUpperCase();
-                        return {   //Aca poner un if en un for en todos ramos para ver si el ramo inscrito no tiene una copia que está aprobada, porque eso significa que ya lo está (aunque no se si sea necesario)
-                            ...ramoInscrito,
-                            nombreAsignatura: mapaNombres.get(codigoNormalizado) || "Nombre no encontrado"
-                        };
-                    });
-                setRamosInscritos(inscritosEnriquecidos);
-
-                // FILTRAR LOS RAMOS APROBADOS
-                const aprobadosEnriquecidos = todosRamos
-                    .filter(ramo => ramo.status === 'APROBADO')
-                    .map(ramoAprobado => {
-                        const codigoNormalizado = ramoAprobado.course.trim().toUpperCase();
-                        return {
-                            ...ramoAprobado,
-                            nombreAsignatura: mapaNombres.get(codigoNormalizado) || "Nombre no encontrado"
-                        };
-                    });
-                setRamosAprobados(aprobadosEnriquecidos);
                 
                 
                 if (userData.carreras.length > 0) {
                     setCarreraActiva(userData.carreras[0]);
                 }
+                console.log(todosRamos);
+                console.log("Carrera activa seteada en useEffect:", userData.carreras[0].catalogo);
+                
+                
+                // FILTRAR Y DEDUPLICAR LOS RAMOS INSCRITOS
+                // Usamos el código del curso normalizado como clave para evitar duplicados
+                const inscritosRaw = todosRamos.filter(ramo => String(ramo.status || '').trim().toUpperCase() === 'INSCRITO');
+                const vistosInscritos = new Set<string>();
+                const inscritosEnriquecidos: RamoExtend[] = [];
+                for (const ramoInscrito of inscritosRaw) {
+                    const codigoNormalizado = ramoInscrito.course.trim().toUpperCase();
+                    if (vistosInscritos.has(codigoNormalizado)) continue; // ya agregado
+                    vistosInscritos.add(codigoNormalizado);
+                    inscritosEnriquecidos.push({
+                        ...ramoInscrito,
+                        nombreAsignatura: mapaNombres.get(codigoNormalizado) || 'Nombre no encontrado'
+                    });
+                }
+                setRamosInscritos(inscritosEnriquecidos);
 
+                // FILTRAR Y DEDUPLICAR LOS RAMOS APROBADOS
+                const aprobadosRaw = todosRamos.filter(ramo => String(ramo.status || '').trim().toUpperCase() === 'APROBADO');
+                const vistosAprobados = new Set<string>();
+                const aprobadosEnriquecidos: RamoExtend[] = [];
+                for (const ramoAprobado of aprobadosRaw) {
+                    const codigoNormalizado = ramoAprobado.course.trim().toUpperCase();
+                    if (vistosAprobados.has(codigoNormalizado)) continue;
+                    vistosAprobados.add(codigoNormalizado);
+                    aprobadosEnriquecidos.push({
+                        ...ramoAprobado,
+                        nombreAsignatura: mapaNombres.get(codigoNormalizado) || 'Nombre no encontrado'
+                    });
+                }
+                setRamosAprobados(aprobadosEnriquecidos);
             } catch (err: any) {
                 setError(err.message);
             } finally {
@@ -144,11 +154,14 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
     }, [userData]);
 
     const handleProyectionClick = () => {
+        
         // Calcular plan de egreso con la malla activa y los ramos inscritos
         if (!carreraActiva) return;// Acá debería ir un pequeño menú para seleccionar carrera
         const malla = mallasCargadas[carreraActiva.codigo]; //Acá entre los [] debería ir la selección de carrera
         if (!malla) return;
         console.log("Malla para planificar:", malla);
+
+        
         // convertir la malla al tipo que espera el planner
         const mallaPlanner: PlannerRamo[] = malla.map(r => {
             const raw = (r as any).prereq;
@@ -171,9 +184,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
         const completedSet = new Set<string>(ramosInscritos.map(r => r.course.trim().toUpperCase()));
         const approvedSet = new Set<string>(ramosAprobados.map(r => r.course.trim().toUpperCase()));
 
-        console.log("Ramos inscritos (completados):", completedSet);
-        console.log("Ramos aprobados:", ramosAprobados);
-        const { plan: computedPlan, remaining, errors } = planSemesters(mallaPlanner, completedSet, 24);
+        
+        const { plan: computedPlan, remaining, errors } = planSemesters(mallaPlanner, completedSet, approvedSet, 30);
         setPlan(computedPlan);
         setPlanErrors(errors.length ? errors : null);
         if (remaining.length) {

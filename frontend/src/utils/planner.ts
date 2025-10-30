@@ -123,7 +123,8 @@ export function hasCycle(graph: Map<string, Node>) {
 
 export function planSemesters(
   malla: Ramo[],
-  completedSet: Set<string>,
+  InscriptedSet: Set<string>,
+  approvedSet: Set<string>,
   maxCreditsPerSemester = 35
 ): { plan: PlanSemester[]; remaining: string[]; errors: string[] } {
   const graph = buildGraph(malla);
@@ -132,6 +133,7 @@ export function planSemesters(
   for (const [codigo, node] of graph.entries()) {
     const prereqs = normalizePrereqs(node.ramo.prereq);
     for (const p of prereqs) {
+      
       if (!graph.has(p)) {
         errors.push(`Prereq ${p} of ${codigo} not found in malla`);
       }
@@ -146,7 +148,7 @@ export function planSemesters(
   const indeg = new Map<string, number>();
   for (const [k, v] of graph) indeg.set(k, v.indegree);
 
-  for (const done of completedSet) {
+  for (const done of approvedSet) {
     if (!graph.has(done)) continue;
     for (const dep of graph.get(done)!.deps) {
       indeg.set(dep, (indeg.get(dep) ?? 0) - 1);
@@ -156,7 +158,7 @@ export function planSemesters(
 
   const available = new Set<string>();
   for (const [k, d] of indeg.entries()) {
-    if (d <= 0 && !completedSet.has(k)) available.add(k);
+    if (d <= 0 && !approvedSet.has(k)) available.add(k);
   }
 
   const plan: PlanSemester[] = [];
@@ -171,7 +173,7 @@ export function planSemesters(
     const thisSemester: Ramo[] = [];
 
     for (const r of candidates) {
-      if (scheduled.has(r.codigo) || completedSet.has(r.codigo)) continue;
+      if (scheduled.has(r.codigo) || approvedSet.has(r.codigo)) continue;
       if (credits + r.creditos > maxCreditsPerSemester) continue;
       thisSemester.push(r);
       scheduled.add(r.codigo);
@@ -189,7 +191,7 @@ export function planSemesters(
       available.delete(r.codigo);
       for (const dep of graph.get(r.codigo)!.deps) {
         indeg.set(dep, (indeg.get(dep) ?? 0) - 1);
-        if ((indeg.get(dep) ?? 0) <= 0 && !completedSet.has(dep) && !scheduled.has(dep)) {
+        if ((indeg.get(dep) ?? 0) <= 0 && !approvedSet.has(dep) && !scheduled.has(dep)) {
           available.add(dep);
         }
       }
@@ -200,7 +202,7 @@ export function planSemesters(
 
   const remaining: string[] = [];
   for (const [k] of graph) {
-    if (!completedSet.has(k) && !scheduled.has(k)) remaining.push(k);
+    if (!approvedSet.has(k) && !scheduled.has(k)) remaining.push(k);
   }
 
   return { plan, remaining, errors };
