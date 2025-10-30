@@ -3,6 +3,7 @@ import styles from './Dashboard.module.css';
 import MallaVisualizer from './MallaVisualizer';
 import { planSemesters } from '../utils/planner';
 import type { Ramo as PlannerRamo, PlanSemester } from '../utils/planner';
+import { saveAvanceCurricular, getAvanceCurricular } from '../utils/localStorageManager';
 
 // --- TIPOS DE DATOS ---
 type RamoAvance = {
@@ -20,7 +21,7 @@ type CarreraMalla = {
 };
 
 // Ramo de avance + el nombre que encontramos
-type RamoExtend = RamoAvance & {
+export type RamoExtend = RamoAvance & {
     nombreAsignatura: string;
 };
 
@@ -58,6 +59,12 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
     useEffect(() => {
         const fetchDatosCompletos = async () => {
             try {
+
+                const cachedData = getAvanceCurricular(userData.rut);
+                if (cachedData) {
+                    setRamosInscritos(cachedData.ramosInscritos);
+                    setRamosAprobados(cachedData.ramosAprobados);
+                }
                 // CARGAR TODAS LAS MALLAS Y CREAR UN MAPA
                 const mapaNombres = new Map<string, string>();
                 const nuevasMallasCargadas: MallasPorCarrera = {};
@@ -89,6 +96,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                 }
                 setMallasCargadas(nuevasMallasCargadas);
 
+                if (!cachedData) {
                 // CARGAR TODO EL AVANCE CURRICULAR 
                 const todosRamos: RamoAvance[] = [];
                 
@@ -127,7 +135,14 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                         };
                     });
                 setRamosAprobados(aprobadosEnriquecidos);
-                
+
+                saveAvanceCurricular({
+                        rut: userData.rut,
+                        ramosInscritos: inscritosEnriquecidos,
+                        ramosAprobados: aprobadosEnriquecidos,
+                        lastUpdate: new Date().toISOString()
+                    });
+                }
                 
                 if (userData.carreras.length > 0) {
                     setCarreraActiva(userData.carreras[0]);

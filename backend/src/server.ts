@@ -5,6 +5,33 @@ import axios from 'axios';
 const app = express();
 const port = 3001;
 
+type RamoMalla = {    codigo: string;
+    asignatura: string;
+    creditos: number;
+    nivel: number;
+    prereq: string;
+};
+
+type RamoAvance = {
+    nrc: string;
+    period: string;
+    student: string;
+    course: string;
+    excluded: boolean;
+    inscriptionType: string;
+    status: string;
+};
+
+type RamoAvanceCompleto = {
+    codigo: string;
+    asignatura: string;
+    creditos: number;
+    nivel: number;
+    status: string;
+    nrc?: string;
+    period?: string;
+};
+
 app.use(cors());
 
 app.get('/api/mallas', async (req, res) => {
@@ -35,25 +62,52 @@ app.get('/api/mallas', async (req, res) => {
     }
 });
 
+// Modificar el endpoint /api/avance
 app.get('/api/avance', async (req, res) => {
-    const { rut, codcarrera } = req.query;
+    const { rut, codcarrera, catalogo } = req.query;
 
-    if (!rut || !codcarrera) {
-        return res.status(400).json({ error: 'Faltan los parámetros rut y código de carrera'});
+    if (!rut || !codcarrera || !catalogo) {
+        return res.status(400).json({ error: 'Faltan parámetros requeridos' });
     }
 
-    const externalAvanceUrl = `https://puclaro.ucn.cl/eross/avance/avance.php`;
-
-    console.log('Solicitando avance a la API');
-
     try {
-        const response = await axios.get(externalAvanceUrl, {
-            params: { rut, codcarrera }
+        // 1. Obtener la malla
+        const mallaResponse = await axios.get(
+            `https://losvilos.ucn.cl/hawaii/api/mallas?${codcarrera}-${catalogo}`,
+            { headers: { 'X-HAWAII-AUTH': 'jf400fejof13f' } }
+        );
+        const malla: RamoMalla[] = mallaResponse.data;
+
+        // 2. Obtener el avance
+        const avanceResponse = await axios.get(
+            'https://puclaro.ucn.cl/eross/avance/avance.php',
+            { params: { rut, codcarrera } }
+        );
+        const avance: RamoAvance[] = avanceResponse.data;
+
+        // 3. Combinar datos
+        const ramosConEstado: RamoAvanceCompleto[] = malla.map(ramoMalla => {
+            const codigoMalla = ramoMalla.codigo.trim().toUpperCase();
+            const ramoAvance = avance.find(a => 
+                a.course.trim().toUpperCase() === codigoMalla
+            );
+
+            return {
+                codigo: ramoMalla.codigo,
+                asignatura: ramoMalla.asignatura,
+                creditos: ramoMalla.creditos,
+                nivel: ramoMalla.nivel,
+                status: ramoAvance?.status || 'PENDIENTE',
+                nrc: ramoAvance?.nrc,
+                period: ramoAvance?.period
+            };
         });
-        res.json(response.data);
-    } catch (error: any){
-        console.error("Error en la API de avance:", error.response?.data || error.message);
-        res.status(error.response?.status || 500).json(error.response?.data || { error: 'Error de conexión con el servidor de avance.' });
+
+        res.json(ramosConEstado);
+
+    } catch (error: any) {
+        console.error("Error procesando avance:", error.response?.data || error.message);
+        res.status(500).json({ error: 'Error al procesar el avance curricular' });
     }
 });
 
