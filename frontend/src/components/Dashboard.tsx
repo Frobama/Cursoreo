@@ -47,6 +47,32 @@ type DashboardProps = {
   onLogout: () => void;
 };
 
+const filterAndEnrinchRamos = (
+    todosRamos: RamoAvance[],
+    statusToFilter: string,
+    mapaNombres: Map<string, string>
+): RamoExtend[] => {
+    const ramosFiltrados = todosRamos.filter(
+        (ramo) => String(ramo.status || "").trim().toUpperCase() === statusToFilter
+    );
+
+    const ramosUnicos: RamoExtend[] = [];
+    const codigosVistos = new Set<string>();
+
+    for (const ramo of ramosFiltrados) {
+        const codigoNormalizado = ramo.course.trim().toUpperCase();
+        if (!codigosVistos.has(codigoNormalizado)) {
+            codigosVistos.add(codigoNormalizado);
+            ramosUnicos.push({
+                ...ramo,
+                nombreAsignatura: mapaNombres.get(codigoNormalizado) || `(${ramo.course})`
+            });
+        }
+    }
+
+    return ramosUnicos;
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
   const [ramosInscritos, setRamosInscritos] = useState<RamoExtend[]>([]);
   const [ramosAprobados, setRamosAprobados] = useState<RamoExtend[]>([]);
@@ -122,95 +148,23 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
           }
           console.log("Todos los ramos obtenidos:", todosRamos);
           // FILTRAR LOS RAMOS INSCRITOS
-          const inscritosEnriquecidos = todosRamos
-            .filter((ramo) => ramo.status === "INSCRITO")
-            .map((ramoInscrito) => {
-              const codigoNormalizado = ramoInscrito.course
-                .trim()
-                .toUpperCase();
-              return {
-                //Aca poner un if en un for en todos ramos para ver si el ramo inscrito no tiene una copia que está aprobada, porque eso significa que ya lo está (aunque no se si sea necesario)
-                ...ramoInscrito,
-                nombreAsignatura:
-                  mapaNombres.get(codigoNormalizado) || "Nombre no encontrado",
-              };
-            });
-          setRamosInscritos(inscritosEnriquecidos);
+          const inscritosFinal = filterAndEnrinchRamos(todosRamos, "INSCRITO", mapaNombres);
+          const aprobadosFinal = filterAndEnrinchRamos(todosRamos, "APROBADO", mapaNombres);
 
-          // FILTRAR LOS RAMOS APROBADOS
-          const aprobadosEnriquecidos = todosRamos
-            .filter((ramo) => ramo.status === "APROBADO")
-            .map((ramoAprobado) => {
-              const codigoNormalizado = ramoAprobado.course
-                .trim()
-                .toUpperCase();
-              return {
-                ...ramoAprobado,
-                nombreAsignatura:
-                  mapaNombres.get(codigoNormalizado) || "Nombre no encontrado",
-              };
-            });
-          setRamosAprobados(aprobadosEnriquecidos);
+          setRamosInscritos(inscritosFinal);
+          setRamosAprobados(aprobadosFinal);
 
           saveAvanceCurricular({
             rut: userData.rut,
-            ramosInscritos: inscritosEnriquecidos,
-            ramosAprobados: aprobadosEnriquecidos,
-            lastUpdate: new Date().toISOString(),
+            ramosInscritos: inscritosFinal,
+            ramosAprobados: aprobadosFinal,
+            lastUpdate: new Date().toISOString()
           });
         }
 
         if (userData.carreras.length > 0) {
-          setCarreraActiva(userData.carreras[0]);
+            setCarreraActiva(userData.carreras[0]);
         }
-        console.log(todosRamos);
-        console.log(
-          "Carrera activa seteada en useEffect:",
-          userData.carreras[0].catalogo
-        );
-
-        // FILTRAR Y DEDUPLICAR LOS RAMOS INSCRITOS
-        // Usamos el código del curso normalizado como clave para evitar duplicados
-        const inscritosRaw = todosRamos.filter(
-          (ramo) =>
-            String(ramo.status || "")
-              .trim()
-              .toUpperCase() === "INSCRITO"
-        );
-        const vistosInscritos = new Set<string>();
-        const inscritosEnriquecidos: RamoExtend[] = [];
-        for (const ramoInscrito of inscritosRaw) {
-          const codigoNormalizado = ramoInscrito.course.trim().toUpperCase();
-          if (vistosInscritos.has(codigoNormalizado)) continue; // ya agregado
-          vistosInscritos.add(codigoNormalizado);
-          inscritosEnriquecidos.push({
-            ...ramoInscrito,
-            nombreAsignatura:
-              mapaNombres.get(codigoNormalizado) || "Nombre no encontrado",
-          });
-        }
-        setRamosInscritos(inscritosEnriquecidos);
-
-        // FILTRAR Y DEDUPLICAR LOS RAMOS APROBADOS
-        const aprobadosRaw = todosRamos.filter(
-          (ramo) =>
-            String(ramo.status || "")
-              .trim()
-              .toUpperCase() === "APROBADO"
-        );
-        const vistosAprobados = new Set<string>();
-        const aprobadosEnriquecidos: RamoExtend[] = [];
-        for (const ramoAprobado of aprobadosRaw) {
-          const codigoNormalizado = ramoAprobado.course.trim().toUpperCase();
-          if (vistosAprobados.has(codigoNormalizado)) continue;
-          vistosAprobados.add(codigoNormalizado);
-          aprobadosEnriquecidos.push({
-            ...ramoAprobado,
-            nombreAsignatura:
-              mapaNombres.get(codigoNormalizado) || "Nombre no encontrado",
-          });
-        }
-        setRamosAprobados(aprobadosEnriquecidos);
       } catch (err: any) {
         setError(err.message);
       } finally {
