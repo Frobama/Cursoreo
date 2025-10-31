@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import styles from "./Dashboard.module.css";
 import MallaVisualizer from "./MallaVisualizer";
+import PlanVisualizer from "./PlanVisualizer";
 import { planSemesters } from "../utils/planner";
 import type { Ramo as PlannerRamo, PlanSemester } from "../utils/planner";
 import {
@@ -41,6 +42,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
   const [mallaCompleta, setMallaCompleta] = useState<RamoCompleto[]>([]);
   const [carreraActiva, setCarreraActiva] = useState<Carrera | null>(null);
   const [mostrarMalla, setMostrarMalla] = useState(false);
+  const [mostrarPlan, setMostrarPlan] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<PlanSemester[] | null>(null);
@@ -133,6 +135,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
         `Quedan sin planificar: ${remaining.join(", ")}`,
       ]);
     }
+    setMostrarMalla(false);
   };
 
   return (
@@ -166,7 +169,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
             {mostrarMalla ? "Ver Ramos Inscritos" : "Ver Malla Completa"}
           </button>
           <button
-            onClick={handleProyectionClick}
+            onClick={() => {handleProyectionClick(); setMostrarPlan(!mostrarPlan)}}
             className={styles.buttonEgreso}
           >
             Proyectar egreso
@@ -181,33 +184,20 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
           </div>
         )}
 
-        {plan && (
-          <div className={styles.planContainer}>
-            <h3>Plan sugerido</h3>
-            {plan.map((s) => (
-              <div key={s.semester}>
-                <h4>
-                  Semestre {s.semester} - Créditos: {s.totalCredits}
-                </h4>
-                <ul>
-                  {s.courses.map((c) => (
-                    <li key={c.codigo}>
-                      {c.codigo} - {c.asignatura} ({c.creditos}cr)
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+        {plan && mostrarPlan && (
+          <div>
+            <h2 style={{ textAlign: 'center', marginTop: '30px'}}> Plan de Egreso Sugerido</h2>
+            <PlanVisualizer plan={plan} />
           </div>
         )}
 
-        {mostrarMalla ? (
+        {!mostrarPlan && mostrarMalla ? (
           carreraActiva && mallaCompleta.length > 0 ? (
             <MallaVisualizer malla={mallaCompleta} />
           ) : (
             <p>Cargando o no se pudo encontrar la malla.</p>
           )
-        ) : (
+        ) : !mostrarPlan && (
           <div className={styles.ramoContainer}>
             <h3>Mis Ramos Inscritos</h3>
             {isLoading && <p>Cargando tus ramos...</p>}
