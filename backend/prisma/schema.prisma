@@ -15,7 +15,7 @@ model Asignatura {
   creditos                                                               Int
   HistorialAcademico                                                     HistorialAcademico[]
   ItemProyeccion                                                         ItemProyeccion[]
-  MallaCurricular                                                        MallaCurricular[]
+  MallaAsignatura                                                        MallaAsignatura[]
   OfertaAcademica                                                        OfertaAcademica[]
   Prerrequisito_Prerrequisito_id_asignatura_fkToAsignatura               Prerrequisito[]      @relation("Prerrequisito_id_asignatura_fkToAsignatura")
   Prerrequisito_Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura Prerrequisito[]      @relation("Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura")
@@ -86,15 +86,13 @@ model ItemProyeccion {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model MallaCurricular {
-  id_malla         Int        @id @default(autoincrement())
-  id_carrera_fk    Int
-  id_asignatura_fk Int
-  nivel_sugerido   Int
-  catalogo         String     @db.VarChar(20)
-  Asignatura       Asignatura @relation(fields: [id_asignatura_fk], references: [id_asignatura], onDelete: NoAction, onUpdate: NoAction)
-  Carrera          Carrera    @relation(fields: [id_carrera_fk], references: [id_carrera], onDelete: NoAction, onUpdate: NoAction)
+  id_malla        Int               @id @default(autoincrement())
+  id_carrera_fk   Int
+  catalogo        String            @db.VarChar(20)
+  MallaAsignatura MallaAsignatura[]
+  Carrera         Carrera           @relation(fields: [id_carrera_fk], references: [id_carrera], onDelete: NoAction, onUpdate: NoAction)
 
-  @@unique([id_carrera_fk, id_asignatura_fk, catalogo], map: "MallaCurricular_id_carrera_fk_id_asignatura_fk_catalogo_idx")
+  @@unique([id_carrera_fk, catalogo], map: "unique_carrera_catalogo")
 }
 
 model OfertaAcademica {
@@ -136,4 +134,15 @@ model SemestreAcademico {
   OfertaAcademica    OfertaAcademica[]
 
   @@unique([ano, periodo], map: "idx_semestre_unico")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model MallaAsignatura {
+  id_malla        Int             @default(autoincrement())
+  id_asignatura   Int
+  nivel_sugerido  BigInt
+  Asignatura      Asignatura      @relation(fields: [id_asignatura], references: [id_asignatura], onDelete: Cascade)
+  MallaCurricular MallaCurricular @relation(fields: [id_malla], references: [id_malla], onDelete: Cascade)
+
+  @@id([id_malla, id_asignatura])
 }

@@ -148,9 +148,13 @@ app.get('/api/avance', async (req, res) => {
             };
         });
 
-        // NUEVO: Guardar en BD (async, no bloquea la respuesta)
+        // NUEVO: Guardar malla en BD (async, no bloquea la respuesta)
+        guardarMallaEnBD(malla, codcarrera as string, catalogo as string)
+            .catch((err: any) => console.error('❌ Error guardando malla en BD:', err));
+
+        // NUEVO: Guardar avance en BD (async, no bloquea la respuesta)
         guardarAvanceEnBD(rut as string, avanceUnicoMap, malla, codcarrera as string)
-            .catch((err: any) => console.error('❌ Error guardando en BD:', err));
+            .catch((err: any) => console.error('❌ Error guardando avance en BD:', err));
 
         res.json(ramosConEstado);
 
@@ -191,6 +195,153 @@ app.get('/api/login', async (req, res) => {
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Error de conexión con el servidor de login.' });
     }
 });
+
+// ============================================
+// FUNCIÓN PARA GUARDAR MALLA CURRICULAR EN BD
+// ============================================
+async function guardarMallaEnBD(
+    malla: RamoMalla[], 
+    codCarrera: string, 
+    catalogo: string
+) {
+    console.log(`📚 Guardando malla curricular de ${codCarrera}-${catalogo} en BD...`);
+
+    try {
+        // 1. Buscar o crear la carrera
+        let carrera = await prisma.carrera.findUnique({
+            where: { codigo_carrera: codCarrera }
+        });
+
+        if (!carrera) {
+            console.log(`📚 Creando carrera ${codCarrera}`);
+            carrera = await prisma.carrera.create({
+                data: {
+                    codigo_carrera: codCarrera,
+                    nombre_carrera: `Carrera ${codCarrera}`, // TODO: Obtener nombre real
+                }
+            });
+        }
+
+        // 2. Buscar o crear la Malla (entidad que representa carrera + catálogo)
+        let mallaCurricular = await prisma.mallaCurricular.findFirst({
+            where: {
+                id_carrera_fk: carrera.id_carrera,
+                catalogo: catalogo
+            }
+        });
+
+        if (!mallaCurricular) {
+            console.log(`📚 Creando malla ${codCarrera}-${catalogo}`);
+            mallaCurricular = await prisma.mallaCurricular.create({
+                data: {
+                    id_carrera_fk: carrera.id_carrera,
+                    catalogo: catalogo
+                }
+            });
+        }
+
+        let asignaturasCreadas = 0;
+        let relacionesCreadas = 0;
+
+        // 3. Por cada ramo de la malla, crear asignaturas y relaciones
+        for (const ramo of malla) {
+            const codigoNormalizado = ramo.codigo.trim().toUpperCase();
+
+            // 3.1 Buscar o crear asignatura
+            let asignatura = await prisma.asignatura.findUnique({
+                where: { codigo_asignatura: codigoNormalizado }
+            });
+
+            if (!asignatura) {
+                asignatura = await prisma.asignatura.create({
+                    data: {
+                        codigo_asignatura: codigoNormalizado,
+                        nombre_asignatura: ramo.asignatura,
+                        creditos: ramo.creditos
+                    }
+                });
+                asignaturasCreadas++;
+            }
+
+            // 3.2 Crear relación en MallaAsignatura (si no existe)
+            const relacionExistente = await prisma.mallaAsignatura.findUnique({
+                where: {
+                    id_malla_id_asignatura: {
+                        id_malla: mallaCurricular.id_malla,
+                        id_asignatura: asignatura.id_asignatura
+                    }
+                }
+            });
+
+            if (!relacionExistente) {
+                await prisma.mallaAsignatura.create({
+                    data: {
+                        id_malla: mallaCurricular.id_malla,
+                        id_asignatura: asignatura.id_asignatura,
+                        nivel_sugerido: ramo.nivel
+                    }
+                });
+                relacionesCreadas++;
+            }
+
+            // 3.3 Guardar prerrequisitos si existen
+            if (ramo.prereq && ramo.prereq !== '-') {
+                await guardarPrerrequisitos(asignatura.id_asignatura, ramo.prereq);
+            }
+        }
+
+        console.log(`✅ Malla ${codCarrera}-${catalogo} guardada:`);
+        console.log(`   📝 Asignaturas nuevas: ${asignaturasCreadas}`);
+        console.log(`   🔗 Relaciones MallaAsignatura creadas: ${relacionesCreadas}`);
+
+    } catch (error: any) {
+        console.error('❌ Error en guardarMallaEnBD:', error.message);
+        throw error;
+    }
+}
+
+// ============================================
+// FUNCIÓN PARA GUARDAR PRERREQUISITOS
+// ============================================
+async function guardarPrerrequisitos(idAsignatura: number, prereqString: string) {
+    try {
+        // El prereq puede venir en formatos como: "INF-123", "INF-123,INF-124", etc.
+        const prereqCodigos = prereqString
+            .split(',')
+            .map(p => p.trim().toUpperCase())
+            .filter(p => p && p !== '-');
+
+        for (const codigoPrereq of prereqCodigos) {
+            // Buscar la asignatura prerequisito
+            const asignaturaPrereq = await prisma.asignatura.findUnique({
+                where: { codigo_asignatura: codigoPrereq }
+            });
+
+            if (asignaturaPrereq) {
+                // Verificar si ya existe la relación
+                const prereqExistente = await prisma.prerrequisito.findFirst({
+                    where: {
+                        id_asignatura_fk: idAsignatura,
+                        id_asignatura_prerrequisito_fk: asignaturaPrereq.id_asignatura
+                    }
+                });
+
+                if (!prereqExistente) {
+                    await prisma.prerrequisito.create({
+                        data: {
+                            id_asignatura_fk: idAsignatura,
+                            id_asignatura_prerrequisito_fk: asignaturaPrereq.id_asignatura
+                        }
+                    });
+                }
+            } else {
+                console.warn(`⚠️ Prerrequisito ${codigoPrereq} no encontrado en BD`);
+            }
+        }
+    } catch (error: any) {
+        console.error(`❌ Error guardando prerrequisitos:`, error.message);
+    }
+}
 
 // ============================================
 // FUNCIÓN PARA GUARDAR ESTUDIANTE EN BD
