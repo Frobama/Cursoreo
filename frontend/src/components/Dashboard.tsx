@@ -40,7 +40,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
   const [ramosAprobados, setRamosAprobados] = useState<RamoCompleto[]>([]);
   const [mallaCompleta, setMallaCompleta] = useState<RamoCompleto[]>([]);
   const [carreraActiva, setCarreraActiva] = useState<Carrera | null>(null);
-  const [mostrarMalla, setMostrarMalla] = useState(false);
+   // Vista actual: 'malla', 'plan', 'inscritos'
+  const [vistaActual, setVistaActual] = useState<'malla' | 'plan' | 'inscritos'>('inscritos');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [plan, setPlan] = useState<PlanSemester[] | null>(null);
@@ -58,7 +59,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
         const res = await fetch(
           `http://localhost:3001/api/avance?rut=${userData.rut}&codcarrera=${carreraActual.codigo}&catalogo=${carreraActual.catalogo}`
         );
-
+        
         if (!res.ok) {
           const errorData = await res.json();
           throw new Error(errorData.error || "No se pudo obtener el avance curricular combinado.");
@@ -124,7 +125,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
       plan: computedPlan,
       remaining,
       errors,
-    } = planSemesters(mallaPlanner, completedSet, approvedSet, 30);
+    } = planSemesters(mallaPlanner, completedSet, approvedSet, 35);
     setPlan(computedPlan);
     setPlanErrors(errors.length ? errors : null);
     if (remaining.length) {
@@ -160,13 +161,24 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
 
         <div className={styles.buttonDiv}>
           <button
-            onClick={() => setMostrarMalla(!mostrarMalla)}
+            onClick={() => {
+              if (vistaActual === 'plan') {
+                setVistaActual('malla');
+              } else if (vistaActual === 'malla') {
+                setVistaActual('inscritos');
+              } else {
+                setVistaActual('malla');
+              }
+            }}
             className={styles.buttonEgreso}
           >
-            {mostrarMalla ? "Ver Ramos Inscritos" : "Ver Malla Completa"}
+            {vistaActual === 'malla' ? "Ver Ramos Inscritos" : "Ver Malla Completa"}  
           </button>
           <button
-            onClick={handleProyectionClick}
+            onClick={() => {
+              handleProyectionClick();
+              setVistaActual('plan');
+            }}
             className={styles.buttonEgreso}
           >
             Proyectar egreso
@@ -181,7 +193,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
           </div>
         )}
 
-        {plan && (
+        {vistaActual === 'plan' && plan && (
           <div className={styles.planContainer}>
             <h3>Plan sugerido</h3>
             {plan.map((s) => (
@@ -201,13 +213,11 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
           </div>
         )}
 
-        {mostrarMalla ? (
-          carreraActiva && mallaCompleta.length > 0 ? (
+        {vistaActual === 'malla' && carreraActiva && mallaCompleta.length > 0 ? (
             <MallaVisualizer malla={mallaCompleta} />
-          ) : (
+          ) : vistaActual === 'malla' ? (
             <p>Cargando o no se pudo encontrar la malla.</p>
-          )
-        ) : (
+        ) : vistaActual === 'inscritos' && (
           <div className={styles.ramoContainer}>
             <h3>Mis Ramos Inscritos</h3>
             {isLoading && <p>Cargando tus ramos...</p>}
@@ -217,7 +227,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
               <p>No tienes ramos inscritos actualmente</p>
             )}
 
-            {ramosInscritos.map((ramo) => (
+            {!isLoading && ramosInscritos.map((ramo) => (
               <div
                 className={styles.ramo}
                 key={`${ramo.codigo}-${ramo.nrc}`}
@@ -228,8 +238,8 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
                 <p>NRC: {ramo.nrc || "Sin NRC"}</p>
               </div>
             ))}
-          </div>
-        )}
+          </div>)
+        }
       </div>
     </>
   );
