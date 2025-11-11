@@ -194,7 +194,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
       mallaPlanner,
       completedSet,
       approvedSet,
-      30
+      35
     );
 
     setPlan(computedPlan);
@@ -280,7 +280,7 @@ const mallaParaProyeccion = mallaCompleta2.map(ramo => ({
             }}
             className={styles.buttonEgreso}
           >
-            Proyectar egreso
+            Planificación sugerida
           </button>
         </div>
 
@@ -295,20 +295,7 @@ const mallaParaProyeccion = mallaCompleta2.map(ramo => ({
         {vistaActual === 'plan' && plan && (
           <div className={styles.planContainer}>
             <h3>Plan sugerido</h3>
-            {plan.map((s) => (
-              <div key={s.semester}>
-                <h4>
-                  Semestre {s.semester} - Créditos: {s.totalCredits}
-                </h4>
-                <ul>
-                  {s.courses.map((c) => (
-                    <li key={c.codigo}>
-                      {c.codigo} - {c.asignatura} ({c.creditos}cr)
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+            <PlanVisualizer plan={plan} />
           </div>
         )}
 
