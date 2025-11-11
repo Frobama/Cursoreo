@@ -142,9 +142,9 @@ app.get('/api/avance', async (req, res) => {
                 nivel: ramoMalla.nivel,
                 status: ramoAvanceUnico?.status || 'PENDIENTE',
                 nrc: ramoAvanceUnico?.nrc,
-                period: ramoAvanceUnico?.period
+                period: ramoAvanceUnico?.period,
                 // Aquí puedes añadir la propiedad 'prereq' si la necesitas en el frontend
-                // prereq: ramoMalla.prereq
+                prereq: ramoMalla.prereq
             };
         });
 
