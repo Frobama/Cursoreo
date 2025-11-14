@@ -41,6 +41,7 @@ type RamoAvanceCompleto = {
 };
 
 app.use(cors());
+app.use(express.json());
 
 app.get('/api/mallas', async (req, res) => {
     const { codigoCarrera, catalogo } = req.query;
@@ -193,6 +194,106 @@ app.get('/api/login', async (req, res) => {
     } catch (error: any){
         console.log('Error en la API de login:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Error de conexión con el servidor de login.' });
+    }
+});
+
+function validateProjectionPayload(body:any) {
+    if (!body) return { ok: false, error: 'Cuerpo vacío' };
+    const { rut, codigoCarrera, catalogo, tipo, plan } = body;
+    if (!rut || typeof rut !== 'string') return { ok: false, error: 'rut inválido' };
+    if (!codigoCarrera || typeof codigoCarrera !== 'string') return { ok: false, error: 'codigoCarrera inválido' };
+    if (!catalogo || typeof catalogo !== 'string') return { ok: false, error: 'catalogo inválido' };
+    if (tipo !== 'manual' && tipo !== 'recommended') return { ok: false, error: 'tipo debe ser "manual" o "recommended"' };
+    if (!Array.isArray(plan)) return { ok: false, error: 'plan debe ser un arreglo' };
+    return { ok: true };
+}
+
+app.post('/api/proyecciones', async (req, res) => {
+    try {
+        const body = req.body;
+        console.log("body",body);
+        const validation = validateProjectionPayload(body);
+        if(!validation.ok) return res.status(400).json({ error: validation.error});
+        
+        const payload = {
+            rut: String(req.body.rut).trim(),
+            codigoCarrera: String(req.body.codigoCarrera).trim(),
+            catalogo: String(req.body.catalogo).trim(),
+            tipo: req.body.tipo,
+            plan: req.body.plan,
+            createdAt: new Date()
+        };
+
+        const { rut, codigoCarrera, catalogo, tipo, plan, nombre_proyeccion } = body;
+
+        const rutNorm = rut.trim();
+
+        const estudiante = await prisma.estudiante.findUnique({ where : {rut: rutNorm} });
+        if(!estudiante) {
+            return res.status(404).json({ error: 'Estudiante no encontrado'});
+        }
+
+        const missingAsignaturas: string[] = [];
+        const itemsToCreate: { id_asignatura_fk: number; ano_proyectado:number; semestre_proyectado: number }[] = [];
+
+        const currentYear = new Date().getFullYear();
+
+        for (const semEntry of plan) {
+            const semesterNumber = Number(semEntry.semester ?? semEntry.sem ?? semEntry.semestre);
+            if (Number.isNaN(semesterNumber)) continue;
+
+            const courses = Array.isArray(semEntry.courses) ? semEntry.courses : [];
+            for (const c of courses) {
+                if (!c || !c.codigo) continue;
+                const codigoNorm = String(c.codigo).trim().toUpperCase();
+                const asignatura = await prisma.asignatura.findUnique({
+                    where: { codigo_asignatura: codigoNorm} 
+                });
+                if(!asignatura) {
+                    missingAsignaturas.push(codigoNorm);
+                    continue;
+                }
+                itemsToCreate.push({
+                    id_asignatura_fk: asignatura.id_asignatura,
+                    ano_proyectado: currentYear,
+                    semestre_proyectado: semesterNumber
+                });
+            }
+        }
+
+        const uniqueItems = Array.from(
+            itemsToCreate.reduce((map, it) => {
+                if (!map.has(it.id_asignatura_fk)) map.set(it.id_asignatura_fk, it);
+                return map;
+            }, new Map<number, typeof itemsToCreate[0]>()).values()
+        );
+
+        // Crear con nested create (sin transacción manual)
+        const created = await prisma.proyeccion.create({
+            data: {
+                id_estudiante_fk: estudiante.id_estudiante,
+                nombre_proyeccion: nombre_proyeccion ? String(nombre_proyeccion).slice(0, 255) : `${tipo.toUpperCase()} - ${new Date().toISOString()}`,
+                fecha_creacion: new Date(),
+                ItemProyeccion: {
+                    create: uniqueItems.map(it => ({
+                        id_asignatura_fk: it.id_asignatura_fk,
+                        ano_proyectado: it.ano_proyectado,
+                        semestre_proyectado: it.semestre_proyectado
+                    }))
+                }
+            },
+            include: { ItemProyeccion: true }
+        });
+
+        return res.status(201).json({ 
+            ok: true, 
+            id: created.id_proyeccion, 
+            missingAsignaturas: Array.from(new Set(missingAsignaturas)) 
+        });
+    
+    } catch (error: any) {
+        console.error('POST /api/proyecciones error:', error);
+        return res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 

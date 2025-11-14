@@ -7,6 +7,7 @@ type props = {
     approvedCourses: Set<string>;
     maxCreditsPerSemester?: number;
     onProjectionChange: (plan: PlanSemester[]) => void;
+    onSave?: (plan: PlanSemester[]) => Promise<void> | void;
 };
 
 type PrereqValidation = {
@@ -22,7 +23,7 @@ const falsePrereqs: string[] = [
     "ECIN-00907", "ECIN-00910", "ECIN-08606"
 ];
 
-const ManualProjection: React.FC<props> = ({availableCourses, approvedCourses, maxCreditsPerSemester = 30, onProjectionChange}) => {
+const ManualProjection: React.FC<props> = ({availableCourses, approvedCourses, maxCreditsPerSemester = 30, onProjectionChange, onSave}) => {
     const initialSemesters = Math.min(
         Math.max(1, Math.max(...availableCourses.map(c => c.nivel || 1))),
         15
@@ -31,7 +32,7 @@ const ManualProjection: React.FC<props> = ({availableCourses, approvedCourses, m
     const [selectedCourses, setSelectedCourses] = useState<Map<number, Set<string>>>(new Map());
     const [semesterCredits, setSemesterCredits ] = useState<Map<number, number>>(new Map());
     const [allSelectedCourses, setAllSelectedCourses] = useState<Set<string>>(new Set());
-
+    const [saving, setSaving] = useState(false);
 
     const getValidPrereqs = (course: Ramo): string[] => {
         if (!course.prereq) return [];
@@ -155,6 +156,43 @@ const ManualProjection: React.FC<props> = ({availableCourses, approvedCourses, m
         setSelectedCourses(new Map(selectedCourses.set(semester, semesterSet)));
     };
 
+    const buildPlan = (): PlanSemester[] => {
+        const plan: PlanSemester[] = [];
+        selectedCourses.forEach((codes, semester) => {
+            const courses = Array.from(codes)
+                .map(code => {
+                    const norm = code.trim().toUpperCase();
+                    return availableCourses.find(c => c.codigo.trim().toUpperCase() === norm);
+
+                })
+                .filter((c): c is Ramo => c !== undefined);
+            plan.push({
+                semester,
+                courses,
+                totalCredits: semesterCredits.get(semester) || 0
+            });
+        });
+        return plan.sort((a, b) => a.semester - b.semester);
+    };
+
+    const handleSave = async () => {
+        const plan = buildPlan();
+        if (!plan.length) { alert('La proyección está vacía.'); return;}
+        try {
+            setSaving(true);
+            if (onSave) {
+                await onSave(plan);
+            } else {
+                onProjectionChange(plan);
+            }
+            alert('Proyección guardada.')
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setSaving(false);
+        }
+    }
+
     useEffect(() => {
         const plan: PlanSemester[] = [];
         selectedCourses.forEach((codes,semester) => {
@@ -249,6 +287,18 @@ const ManualProjection: React.FC<props> = ({availableCourses, approvedCourses, m
                     Agregar semestre
                 </button>
             )}
+
+            <div>
+                <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className={styles.addSemesterButton}
+                >
+                    {saving ? 'Guardando...' : 'Guardar Proyección'}
+                </button>
+            </div>
+            
+            
             
         </div>
     );

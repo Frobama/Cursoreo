@@ -7,6 +7,7 @@ import ManualProjection from './ManualProjection';
 import { planSemesters } from "../utils/planner";
 import type { Ramo as PlannerRamo, PlanSemester } from "../utils/planner";
 import { saveAvanceCurricular, getAvanceCurricular } from "../utils/localStorageManager";
+import { saveProjectionToServer } from "../api/projection";
 
 // Types
 export type RamoCompleto = {
@@ -66,6 +67,9 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
   const [plan, setPlan] = useState<PlanSemester[] | null>(null);
   const [planErrors, setPlanErrors] = useState<string[] | null>(null);
   const [manualPlan, setManualPlan] = useState<PlanSemester[] | null>(null);
+  const [savingProjection, setSavingProjection] = useState(false);
+  const [saveProjectionError, setSaveProjectionError] = useState<string | null>(null);
+
 
   const validateAndNormalizeMalla = (mallaData: RamoCompleto[]): ValidatedRamo[] => {
     // Create lookup map for quick code validation
@@ -230,6 +234,44 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
     }
   }
 
+  const handleSaveRecommended = async (plan: PlanSemester[]) => {
+    if (!carreraActiva) return;
+    try {
+      setSavingProjection(true);
+      await saveProjectionToServer({
+        rut: userData.rut,
+        codigoCarrera: carreraActiva.codigo,
+        catalogo: carreraActiva.catalogo,
+        tipo: 'recommended',
+        plan
+      } as any);
+      alert('Proyección recomendada guardada');
+    } catch (err: any) {
+      console.error('Error guardando proyeccion: ' + (err.message ?? ''));
+    } finally {
+      setSavingProjection(false);
+    }
+  };
+
+  const handleSaveFromManual = async (plan: PlanSemester[]) => {
+    if (!carreraActiva) return;
+    try {
+      setSavingProjection(true);
+      await saveProjectionToServer({
+        rut: userData.rut,
+        codigoCarrera: carreraActiva.codigo,
+        catalogo: carreraActiva.catalogo,
+        tipo: 'manual',
+        plan
+      } as any);
+      alert('Proyección manual guardada');
+    } catch (err: any) {
+      console.error('Error guardando proyeccion: ' + (err.message ?? ''));
+    } finally {
+      setSavingProjection(false);
+    }
+  };
+
 
 console.log('Malla data check:', mallaCompleta);
 const mallaParaProyeccion = mallaCompleta2.map(ramo => ({
@@ -336,6 +378,7 @@ const mallaParaProyeccion = mallaCompleta2.map(ramo => ({
           approvedCourses={new Set([...ramosAprobados,...ramosInscritos].map(r => r.codigo.trim().toUpperCase()))}
           maxCreditsPerSemester={30}
           onProjectionChange={setManualPlan}
+          onSave={handleSaveFromManual}
         />
       </div>
     </div>
