@@ -190,8 +190,15 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
     const completedSet = new Set(
       ramosInscritos.map(r => r.codigo.trim().toUpperCase())
     );
+    const aprobados = mallaCompleta
+          .map(r => ({
+            ...(r.status === 'INSCRITO' ? { ...r, status: 'APROBADO' } : r)
+          })) 
+          .filter(ramo => 
+          ramo.status.trim().toUpperCase() === 'APROBADO'
+        );
     const approvedSet = new Set(
-      ramosAprobados.map(r => r.codigo.trim().toUpperCase())
+      aprobados.map(r => r.codigo.trim().toUpperCase())
     );
 
     const { plan: computedPlan, remaining, errors } = planSemesters(
