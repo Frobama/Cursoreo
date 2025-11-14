@@ -27,12 +27,15 @@ const MallaVisualizer: React.FC<MallaVisualizerProps> = ({ malla }) => {
     // 3. (Opcional pero recomendado) Función de ayuda para mantener el JSX limpio
     // Devuelve el nombre de la clase CSS según el estado del ramo.
     const getStatusClass = (status: string) => {
-        const statusUpper = status.toUpperCase();
+        const statusUpper = (status || '').toString().trim().toUpperCase();
         if (statusUpper === 'APROBADO') {
             return styles.statusAprobado;
         }
         if (statusUpper === 'INSCRITO') {
             return styles.statusInscrito;
+        }
+        if (statusUpper === 'REPROBADO') {
+            return styles.statusReprobado;
         }
         return styles.statusPendiente; // Para 'PENDIENTE' o cualquier otro caso
     };

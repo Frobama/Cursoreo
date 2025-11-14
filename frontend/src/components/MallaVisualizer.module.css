@@ -80,3 +80,8 @@
     background-color: #e0f2fe; /* Fondo azul claro */
     border-left-color: #0c90dc; /* Borde azul oscuro */
 }
+
+.statusReprobado {
+    background-color: rgb(243, 149, 149);
+    border-left-color: red;
+}

@@ -1,9 +1,17 @@
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
+import { PrismaClient } from '@prisma/client';
+import dotenv from 'dotenv';
+
+// Cargar variables de entorno
+dotenv.config();
+
+// Cliente de Prisma para la base de datos
+const prisma = new PrismaClient();
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001;
 
 type RamoMalla = {    codigo: string;
     asignatura: string;
@@ -33,6 +41,7 @@ type RamoAvanceCompleto = {
 };
 
 app.use(cors());
+app.use(express.json());
 
 app.get('/api/mallas', async (req, res) => {
     const { codigoCarrera, catalogo } = req.query;
@@ -134,11 +143,19 @@ app.get('/api/avance', async (req, res) => {
                 nivel: ramoMalla.nivel,
                 status: ramoAvanceUnico?.status || 'PENDIENTE',
                 nrc: ramoAvanceUnico?.nrc,
-                period: ramoAvanceUnico?.period
+                period: ramoAvanceUnico?.period,
                 // Aquí puedes añadir la propiedad 'prereq' si la necesitas en el frontend
-                // prereq: ramoMalla.prereq
+                prereq: ramoMalla.prereq
             };
         });
+
+        // NUEVO: Guardar malla en BD (async, no bloquea la respuesta)
+        guardarMallaEnBD(malla, codcarrera as string, catalogo as string)
+            .catch((err: any) => console.error('❌ Error guardando malla en BD:', err));
+
+        // NUEVO: Guardar avance en BD (async, no bloquea la respuesta)
+        guardarAvanceEnBD(rut as string, avanceUnicoMap, malla, codcarrera as string)
+            .catch((err: any) => console.error('❌ Error guardando avance en BD:', err));
 
         res.json(ramosConEstado);
 
@@ -164,13 +181,493 @@ app.get('/api/login', async (req, res) => {
 
     try {
         const response = await axios.get(externalLoginUrl);
-        res.json(response.data);
+        const userData = response.data;
+
+        // Si el login es exitoso, guardar/actualizar estudiante en BD
+        if (userData && userData.rut) {
+            // Agregar el email al userData ya que la API no lo retorna
+            guardarEstudianteEnBD(userData, email as string)
+                .catch((err: any) => console.error('❌ Error guardando estudiante en BD:', err));
+        }
+
+        res.json(userData);
     } catch (error: any){
         console.log('Error en la API de login:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Error de conexión con el servidor de login.' });
     }
-})
+});
 
-app.listen(port, () => {
-    console.log(`Servidor proxy escuchando en http://localhost:${port}`);
+function validateProjectionPayload(body:any) {
+    if (!body) return { ok: false, error: 'Cuerpo vacío' };
+    const { rut, codigoCarrera, catalogo, tipo, plan } = body;
+    if (!rut || typeof rut !== 'string') return { ok: false, error: 'rut inválido' };
+    if (!codigoCarrera || typeof codigoCarrera !== 'string') return { ok: false, error: 'codigoCarrera inválido' };
+    if (!catalogo || typeof catalogo !== 'string') return { ok: false, error: 'catalogo inválido' };
+    if (tipo !== 'manual' && tipo !== 'recommended') return { ok: false, error: 'tipo debe ser "manual" o "recommended"' };
+    if (!Array.isArray(plan)) return { ok: false, error: 'plan debe ser un arreglo' };
+    return { ok: true };
+}
+
+app.post('/api/proyecciones', async (req, res) => {
+    try {
+        const body = req.body;
+        console.log("body",body);
+        const validation = validateProjectionPayload(body);
+        if(!validation.ok) return res.status(400).json({ error: validation.error});
+        
+        const payload = {
+            rut: String(req.body.rut).trim(),
+            codigoCarrera: String(req.body.codigoCarrera).trim(),
+            catalogo: String(req.body.catalogo).trim(),
+            tipo: req.body.tipo,
+            plan: req.body.plan,
+            createdAt: new Date()
+        };
+
+        const { rut, codigoCarrera, catalogo, tipo, plan, nombre_proyeccion } = body;
+
+        const rutNorm = rut.trim();
+
+        const estudiante = await prisma.estudiante.findUnique({ where : {rut: rutNorm} });
+        if(!estudiante) {
+            return res.status(404).json({ error: 'Estudiante no encontrado'});
+        }
+
+        const missingAsignaturas: string[] = [];
+        const itemsToCreate: { id_asignatura_fk: number; ano_proyectado:number; semestre_proyectado: number }[] = [];
+
+        const currentYear = new Date().getFullYear();
+
+        for (const semEntry of plan) {
+            const semesterNumber = Number(semEntry.semester ?? semEntry.sem ?? semEntry.semestre);
+            if (Number.isNaN(semesterNumber)) continue;
+
+            const courses = Array.isArray(semEntry.courses) ? semEntry.courses : [];
+            for (const c of courses) {
+                if (!c || !c.codigo) continue;
+                const codigoNorm = String(c.codigo).trim().toUpperCase();
+                const asignatura = await prisma.asignatura.findUnique({
+                    where: { codigo_asignatura: codigoNorm} 
+                });
+                if(!asignatura) {
+                    missingAsignaturas.push(codigoNorm);
+                    continue;
+                }
+                itemsToCreate.push({
+                    id_asignatura_fk: asignatura.id_asignatura,
+                    ano_proyectado: currentYear,
+                    semestre_proyectado: semesterNumber
+                });
+            }
+        }
+
+        const uniqueItems = Array.from(
+            itemsToCreate.reduce((map, it) => {
+                if (!map.has(it.id_asignatura_fk)) map.set(it.id_asignatura_fk, it);
+                return map;
+            }, new Map<number, typeof itemsToCreate[0]>()).values()
+        );
+
+        // Crear con nested create (sin transacción manual)
+        const created = await prisma.proyeccion.create({
+            data: {
+                id_estudiante_fk: estudiante.id_estudiante,
+                nombre_proyeccion: nombre_proyeccion ? String(nombre_proyeccion).slice(0, 255) : `${tipo.toUpperCase()} - ${new Date().toISOString()}`,
+                fecha_creacion: new Date(),
+                ItemProyeccion: {
+                    create: uniqueItems.map(it => ({
+                        id_asignatura_fk: it.id_asignatura_fk,
+                        ano_proyectado: it.ano_proyectado,
+                        semestre_proyectado: it.semestre_proyectado
+                    }))
+                }
+            },
+            include: { ItemProyeccion: true }
+        });
+
+        return res.status(201).json({ 
+            ok: true, 
+            id: created.id_proyeccion, 
+            missingAsignaturas: Array.from(new Set(missingAsignaturas)) 
+        });
+    
+    } catch (error: any) {
+        console.error('POST /api/proyecciones error:', error);
+        return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// ============================================
+// FUNCIÓN PARA GUARDAR MALLA CURRICULAR EN BD
+// ============================================
+async function guardarMallaEnBD(
+    malla: RamoMalla[], 
+    codCarrera: string, 
+    catalogo: string
+) {
+    console.log(`📚 Guardando malla curricular de ${codCarrera}-${catalogo} en BD...`);
+
+    try {
+        // 1. Buscar o crear la carrera
+        let carrera = await prisma.carrera.findUnique({
+            where: { codigo_carrera: codCarrera }
+        });
+
+        if (!carrera) {
+            console.log(`📚 Creando carrera ${codCarrera}`);
+            carrera = await prisma.carrera.create({
+                data: {
+                    codigo_carrera: codCarrera,
+                    nombre_carrera: `Carrera ${codCarrera}`, // TODO: Obtener nombre real
+                }
+            });
+        }
+
+        // 2. Buscar o crear la Malla (entidad que representa carrera + catálogo)
+        let mallaCurricular = await prisma.mallaCurricular.findFirst({
+            where: {
+                id_carrera_fk: carrera.id_carrera,
+                catalogo: catalogo
+            }
+        });
+
+        if (!mallaCurricular) {
+            console.log(`📚 Creando malla ${codCarrera}-${catalogo}`);
+            mallaCurricular = await prisma.mallaCurricular.create({
+                data: {
+                    id_carrera_fk: carrera.id_carrera,
+                    catalogo: catalogo
+                }
+            });
+        }
+
+        let asignaturasCreadas = 0;
+        let relacionesCreadas = 0;
+
+        // 3. Por cada ramo de la malla, crear asignaturas y relaciones
+        for (const ramo of malla) {
+            const codigoNormalizado = ramo.codigo.trim().toUpperCase();
+
+            // 3.1 Buscar o crear asignatura
+            let asignatura = await prisma.asignatura.findUnique({
+                where: { codigo_asignatura: codigoNormalizado }
+            });
+
+            if (!asignatura) {
+                asignatura = await prisma.asignatura.create({
+                    data: {
+                        codigo_asignatura: codigoNormalizado,
+                        nombre_asignatura: ramo.asignatura,
+                        creditos: ramo.creditos
+                    }
+                });
+                asignaturasCreadas++;
+            }
+
+            // 3.2 Crear relación en MallaAsignatura (si no existe)
+            const relacionExistente = await prisma.mallaAsignatura.findUnique({
+                where: {
+                    id_malla_id_asignatura: {
+                        id_malla: mallaCurricular.id_malla,
+                        id_asignatura: asignatura.id_asignatura
+                    }
+                }
+            });
+
+            if (!relacionExistente) {
+                await prisma.mallaAsignatura.create({
+                    data: {
+                        id_malla: mallaCurricular.id_malla,
+                        id_asignatura: asignatura.id_asignatura,
+                        nivel_sugerido: ramo.nivel
+                    }
+                });
+                relacionesCreadas++;
+            }
+
+            // 3.3 Guardar prerrequisitos si existen
+            if (ramo.prereq && ramo.prereq !== '-') {
+                await guardarPrerrequisitos(asignatura.id_asignatura, ramo.prereq);
+            }
+        }
+
+        console.log(`✅ Malla ${codCarrera}-${catalogo} guardada:`);
+        console.log(`   📝 Asignaturas nuevas: ${asignaturasCreadas}`);
+        console.log(`   🔗 Relaciones MallaAsignatura creadas: ${relacionesCreadas}`);
+
+    } catch (error: any) {
+        console.error('❌ Error en guardarMallaEnBD:', error.message);
+        throw error;
+    }
+}
+
+// ============================================
+// FUNCIÓN PARA GUARDAR PRERREQUISITOS
+// ============================================
+async function guardarPrerrequisitos(idAsignatura: number, prereqString: string) {
+    try {
+        // El prereq puede venir en formatos como: "INF-123", "INF-123,INF-124", etc.
+        const prereqCodigos = prereqString
+            .split(',')
+            .map(p => p.trim().toUpperCase())
+            .filter(p => p && p !== '-');
+
+        for (const codigoPrereq of prereqCodigos) {
+            // Buscar la asignatura prerequisito
+            const asignaturaPrereq = await prisma.asignatura.findUnique({
+                where: { codigo_asignatura: codigoPrereq }
+            });
+
+            if (asignaturaPrereq) {
+                // Verificar si ya existe la relación
+                const prereqExistente = await prisma.prerrequisito.findFirst({
+                    where: {
+                        id_asignatura_fk: idAsignatura,
+                        id_asignatura_prerrequisito_fk: asignaturaPrereq.id_asignatura
+                    }
+                });
+
+                if (!prereqExistente) {
+                    await prisma.prerrequisito.create({
+                        data: {
+                            id_asignatura_fk: idAsignatura,
+                            id_asignatura_prerrequisito_fk: asignaturaPrereq.id_asignatura
+                        }
+                    });
+                }
+            } else {
+                console.warn(`⚠️ Prerrequisito ${codigoPrereq} no encontrado en BD`);
+            }
+        }
+    } catch (error: any) {
+        console.error(`❌ Error guardando prerrequisitos:`, error.message);
+    }
+}
+
+// ============================================
+// FUNCIÓN PARA GUARDAR ESTUDIANTE EN BD
+// ============================================
+async function guardarEstudianteEnBD(userData: any, emailFromRequest: string) {
+    try {
+        console.log('🔍 Datos recibidos en guardarEstudianteEnBD:', JSON.stringify(userData, null, 2));
+        
+        const { rut, carreras } = userData;
+        const email = emailFromRequest; // Usar el email del request de login
+
+        if (!rut || !email) {
+            console.warn('⚠️ Datos incompletos para guardar estudiante');
+            console.log('   RUT:', rut);
+            console.log('   Email:', email);
+            return;
+        }
+
+        console.log(`👤 Guardando/actualizando estudiante ${rut} en BD...`);
+
+        // Buscar o crear estudiante
+        const estudiante = await prisma.estudiante.upsert({
+            where: { rut },
+            update: {
+                email,
+                // nombre_completo se puede actualizar si viene en userData
+            },
+            create: {
+                rut,
+                email,
+                nombre_completo: userData.nombre || 'Nombre pendiente', // Ajusta según lo que retorne la API
+            }
+        });
+
+        // Si hay carreras, guardar relación Estudiante-Carrera
+        if (carreras && Array.isArray(carreras)) {
+            for (const carrera of carreras) {
+                const { codigo, catalogo, nombre } = carrera;
+
+                // Buscar o crear carrera
+                let carreraDB = await prisma.carrera.findUnique({
+                    where: { codigo_carrera: codigo }
+                });
+
+                if (!carreraDB) {
+                    console.log(`📚 Creando carrera ${codigo}`);
+                    carreraDB = await prisma.carrera.create({
+                        data: {
+                            codigo_carrera: codigo,
+                            nombre_carrera: nombre || 'Nombre pendiente',
+                        }
+                    });
+                }
+
+                // Crear relación Estudiante-Carrera si no existe
+                const relacionExiste = await prisma.estudianteCarrera.findFirst({
+                    where: {
+                        id_estudiante_fk: estudiante.id_estudiante,
+                        id_carrera_fk: carreraDB.id_carrera
+                    }
+                });
+
+                if (!relacionExiste) {
+                    console.log(`🔗 Vinculando estudiante con carrera ${codigo}`);
+                    await prisma.estudianteCarrera.create({
+                        data: {
+                            id_estudiante_fk: estudiante.id_estudiante,
+                            id_carrera_fk: carreraDB.id_carrera,
+                            catalogo: catalogo || '2024'
+                        }
+                    });
+                }
+            }
+        }
+
+        console.log(`✅ Estudiante ${rut} guardado en BD`);
+
+    } catch (error: any) {
+        console.error('❌ Error en guardarEstudianteEnBD:', error.message);
+        throw error;
+    }
+}
+
+// ============================================
+// FUNCIÓN PARA GUARDAR AVANCE EN BASE DE DATOS
+// ============================================
+async function guardarAvanceEnBD(
+    rut: string, 
+    avanceNormalizado: Map<string, RamoAvance>, 
+    malla: RamoMalla[],
+    codCarrera: string
+) {
+    console.log(`💾 Guardando avance de ${rut} en BD...`);
+
+    try {
+        // 1. Buscar estudiante en BD
+        const estudiante = await prisma.estudiante.findUnique({
+            where: { rut }
+        });
+
+        if (!estudiante) {
+            console.log(`⚠️ Estudiante ${rut} no encontrado en BD. Debe hacer login primero.`);
+            return;
+        }
+
+        // 2. Por cada ramo del avance normalizado
+        for (const [codigoCurso, datosCurso] of avanceNormalizado.entries()) {
+            
+            // 2.1 Buscar datos del ramo en la malla
+            const ramoEnMalla = malla.find(r => 
+                r.codigo.trim().toUpperCase() === codigoCurso
+            );
+
+            if (!ramoEnMalla) {
+                console.warn(`⚠️ Asignatura ${codigoCurso} no encontrada en malla`);
+                continue;
+            }
+
+            // 2.2 Buscar o crear asignatura
+            let asignatura = await prisma.asignatura.findUnique({
+                where: { codigo_asignatura: codigoCurso }
+            });
+
+            if (!asignatura) {
+                console.log(`📝 Creando asignatura ${codigoCurso}`);
+                asignatura = await prisma.asignatura.create({
+                    data: {
+                        codigo_asignatura: codigoCurso,
+                        nombre_asignatura: ramoEnMalla.asignatura,
+                        creditos: ramoEnMalla.creditos
+                    }
+                });
+            }
+
+            // 2.3 Parsear período 
+            // Soporta formatos: "2024-1", "20241", "2024/1", "2024.1"
+            if (!datosCurso.period) {
+                console.warn(`⚠️ Período faltante para ${codigoCurso}`);
+                continue;
+            }
+            
+            // Intentar múltiples formatos
+            let ano: number | null = null;
+            let periodo: number | null = null;
+            
+            // Formato: "2024-1" o "2024/1" o "2024.1"
+            let match = datosCurso.period.match(/(\d{4})[-\/\.](\d)/);
+            if (match) {
+                ano = parseInt(match[1]);
+                periodo = parseInt(match[2]);
+            } else {
+                // Formato: "20241" (6 dígitos, últimos 1-2 son el período)
+                match = datosCurso.period.match(/(\d{4})(\d{1,2})/);
+                if (match) {
+                    ano = parseInt(match[1]);
+                    periodo = parseInt(match[2]);
+                }
+            }
+            
+            if (!ano || !periodo) {
+                console.warn(`⚠️ Formato de período inválido: ${datosCurso.period}`);
+                console.log(`   Formatos esperados: "2024-1", "20241", "2024/1", "2024.1"`);
+                continue;
+            }
+
+            // 2.4 Buscar o crear semestre académico
+            let semestre = await prisma.semestreAcademico.findFirst({
+                where: { ano, periodo }
+            });
+
+            if (!semestre) {
+                console.log(`📅 Creando semestre ${ano}-${periodo}`);
+                semestre = await prisma.semestreAcademico.create({
+                    data: { ano, periodo }
+                });
+            }
+
+            // 2.5 Guardar/actualizar en historial académico
+            const estadoNormalizado = datosCurso.status.trim().toUpperCase();
+            const nrcNumerico = datosCurso.nrc ? parseInt(datosCurso.nrc) : null;
+
+            await prisma.historialAcademico.upsert({
+                where: {
+                    id_estudiante_fk_id_asignatura_fk_id_semestre_fk: {
+                        id_estudiante_fk: estudiante.id_estudiante,
+                        id_asignatura_fk: asignatura.id_asignatura,
+                        id_semestre_fk: semestre.id_semestre
+                    }
+                },
+                update: {
+                    estado: estadoNormalizado,
+                    nrc: nrcNumerico
+                },
+                create: {
+                    id_estudiante_fk: estudiante.id_estudiante,
+                    id_asignatura_fk: asignatura.id_asignatura,
+                    id_semestre_fk: semestre.id_semestre,
+                    estado: estadoNormalizado,
+                    nrc: nrcNumerico,
+                    nota_final: null
+                }
+            });
+        }
+
+        console.log(`✅ Avance de ${rut} guardado exitosamente en BD`);
+
+    } catch (error: any) {
+        console.error('❌ Error en guardarAvanceEnBD:', error.message);
+        throw error;
+    }
+}
+
+app.listen(port, async () => {
+    console.log(`🚀 Servidor escuchando en http://localhost:${port}`);
+    
+    // Test de conexión a la base de datos
+    try {
+        await prisma.$connect();
+        console.log(`✅ Base de datos: Conectada a Supabase`);
+        
+        // Verificar que podamos hacer queries
+        const estudiantesCount = await prisma.estudiante.count();
+        console.log(`📊 Estudiantes en BD: ${estudiantesCount}`);
+    } catch (error: any) {
+        console.error(`❌ Error conectando a BD:`, error.message);
+        console.error(`🔍 DATABASE_URL configurado:`, process.env.DATABASE_URL ? 'SÍ' : 'NO');
+    }
 });

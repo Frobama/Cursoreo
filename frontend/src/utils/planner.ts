@@ -40,7 +40,6 @@ export function buildGraph(malla: Ramo[], falseprereqlist: String[]) {
     map.set(r.codigo, { ramo: r, indegree: 0, deps: [] });
     
   }
-
   for (const r of malla) {
     const raw = r.prereq;
     
@@ -52,6 +51,7 @@ export function buildGraph(malla: Ramo[], falseprereqlist: String[]) {
     }
 
     for (const p of prereqs) {
+      
       const rn = map.get(r.codigo);
       if (!rn) continue;
 
@@ -145,7 +145,7 @@ export function planSemesters(
   const cleanMalla = sanitizeMalla(malla, falseprereq);
   const graph = buildGraph(cleanMalla, falseprereq);
   const errors: string[] = [];
-
+  console.log("Graph construido para planificacion:", graph);
   for (const [codigo, node] of graph.entries()) {
     const prereqs = normalizePrereqs(node.ramo.prereq);
     for (const p of prereqs) {
@@ -160,15 +160,18 @@ export function planSemesters(
     errors.push('Ciclo detectado en prerequisitos (imposible planificar).');
     return { plan: [], remaining: [], errors };
   }
-
+  
   const indeg = new Map<string, number>();
   for (const [k, v] of graph) indeg.set(k, v.indegree);
 
   for (const done of approvedSet) {
-    if (!graph.has(done)) continue;
+    
+    if (!graph.has(done)) continue; //ignorar un ramo aprobado que no esta en la malla
     for (const dep of graph.get(done)!.deps) {
+      
       indeg.set(dep, (indeg.get(dep) ?? 0) - 1);
     }
+    
     indeg.set(done, -Infinity);
   }
 
@@ -226,6 +229,7 @@ export function planSemesters(
     semester++;
   }
 
+  
   const remaining: string[] = [];
   for (const [k] of graph) {
     if (!approvedSet.has(k) && !scheduled.has(k)) remaining.push(k);

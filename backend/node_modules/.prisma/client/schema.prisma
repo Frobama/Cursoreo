@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model Asignatura {
+  id_asignatura                                                          Int                  @id @default(autoincrement())
+  codigo_asignatura                                                      String               @unique @db.VarChar(20)
+  nombre_asignatura                                                      String               @db.VarChar(255)
+  creditos                                                               Int
+  HistorialAcademico                                                     HistorialAcademico[]
+  ItemProyeccion                                                         ItemProyeccion[]
+  MallaAsignatura                                                        MallaAsignatura[]
+  OfertaAcademica                                                        OfertaAcademica[]
+  Prerrequisito_Prerrequisito_id_asignatura_fkToAsignatura               Prerrequisito[]      @relation("Prerrequisito_id_asignatura_fkToAsignatura")
+  Prerrequisito_Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura Prerrequisito[]      @relation("Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model Carrera {
+  id_carrera             Int                 @id @default(autoincrement())
+  codigo_carrera         String              @unique @db.VarChar(20)
+  nombre_carrera         String              @db.VarChar(255)
+  creditos_max_regular   Int                 @default(30)
+  creditos_max_sobrecupo Int                 @default(35)
+  EstudianteCarrera      EstudianteCarrera[]
+  MallaCurricular        MallaCurricular[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model Estudiante {
+  id_estudiante      Int                  @id @default(autoincrement())
+  rut                String               @unique @db.VarChar(15)
+  nombre_completo    String               @db.VarChar(255)
+  email              String               @unique @db.VarChar(255)
+  EstudianteCarrera  EstudianteCarrera[]
+  HistorialAcademico HistorialAcademico[]
+  Proyeccion         Proyeccion[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model EstudianteCarrera {
+  id_estudiante_carrera Int        @id @default(autoincrement())
+  id_estudiante_fk      Int
+  id_carrera_fk         Int
+  catalogo              String     @db.VarChar(20)
+  Carrera               Carrera    @relation(fields: [id_carrera_fk], references: [id_carrera], onDelete: NoAction, onUpdate: NoAction)
+  Estudiante            Estudiante @relation(fields: [id_estudiante_fk], references: [id_estudiante], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id_estudiante_fk, id_carrera_fk], map: "idx_estudiante_en_carrera")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model HistorialAcademico {
+  id_historial      Int               @id @default(autoincrement())
+  id_estudiante_fk  Int
+  id_asignatura_fk  Int
+  id_semestre_fk    Int
+  estado            String            @db.VarChar(50)
+  nota_final        Decimal?          @db.Decimal(4, 2)
+  nrc               Int?
+  Asignatura        Asignatura        @relation(fields: [id_asignatura_fk], references: [id_asignatura], onDelete: NoAction, onUpdate: NoAction)
+  Estudiante        Estudiante        @relation(fields: [id_estudiante_fk], references: [id_estudiante], onDelete: NoAction, onUpdate: NoAction)
+  SemestreAcademico SemestreAcademico @relation(fields: [id_semestre_fk], references: [id_semestre], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id_estudiante_fk, id_asignatura_fk, id_semestre_fk], map: "HistorialAcademico_id_estudiante_fk_id_asignatura_fk_id_sem_idx")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model ItemProyeccion {
+  id_item             Int        @id @default(autoincrement())
+  id_proyeccion_fk    Int
+  id_asignatura_fk    Int
+  ano_proyectado      Int
+  semestre_proyectado Int
+  Asignatura          Asignatura @relation(fields: [id_asignatura_fk], references: [id_asignatura], onDelete: NoAction, onUpdate: NoAction)
+  Proyeccion          Proyeccion @relation(fields: [id_proyeccion_fk], references: [id_proyeccion], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_proyeccion_fk, id_asignatura_fk], map: "ItemProyeccion_id_proyeccion_fk_id_asignatura_fk_idx")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model MallaCurricular {
+  id_malla        Int               @id @default(autoincrement())
+  id_carrera_fk   Int
+  catalogo        String            @db.VarChar(20)
+  MallaAsignatura MallaAsignatura[]
+  Carrera         Carrera           @relation(fields: [id_carrera_fk], references: [id_carrera], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id_carrera_fk, catalogo], map: "unique_carrera_catalogo")
+}
+
+model OfertaAcademica {
+  id_oferta         Int               @id @default(autoincrement())
+  id_semestre_fk    Int
+  id_asignatura_fk  Int
+  cupos_disponibles Int?
+  Asignatura        Asignatura        @relation(fields: [id_asignatura_fk], references: [id_asignatura], onDelete: NoAction, onUpdate: NoAction)
+  SemestreAcademico SemestreAcademico @relation(fields: [id_semestre_fk], references: [id_semestre], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id_semestre_fk, id_asignatura_fk], map: "OfertaAcademica_id_semestre_fk_id_asignatura_fk_idx")
+}
+
+model Prerrequisito {
+  id_prerrequisito                                                    Int        @id @default(autoincrement())
+  id_asignatura_fk                                                    Int
+  id_asignatura_prerrequisito_fk                                      Int
+  Asignatura_Prerrequisito_id_asignatura_fkToAsignatura               Asignatura @relation("Prerrequisito_id_asignatura_fkToAsignatura", fields: [id_asignatura_fk], references: [id_asignatura], onDelete: NoAction, onUpdate: NoAction)
+  Asignatura_Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura Asignatura @relation("Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura", fields: [id_asignatura_prerrequisito_fk], references: [id_asignatura], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id_asignatura_fk, id_asignatura_prerrequisito_fk], map: "Prerrequisito_id_asignatura_fk_id_asignatura_prerrequisito__idx")
+}
+
+model Proyeccion {
+  id_proyeccion     Int              @id @default(autoincrement())
+  id_estudiante_fk  Int
+  nombre_proyeccion String           @db.VarChar(255)
+  fecha_creacion    DateTime?        @default(now()) @db.Timestamp(6)
+  ItemProyeccion    ItemProyeccion[]
+  Estudiante        Estudiante       @relation(fields: [id_estudiante_fk], references: [id_estudiante], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model SemestreAcademico {
+  id_semestre        Int                  @id @default(autoincrement())
+  ano                Int
+  periodo            Int
+  HistorialAcademico HistorialAcademico[]
+  OfertaAcademica    OfertaAcademica[]
+
+  @@unique([ano, periodo], map: "idx_semestre_unico")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model MallaAsignatura {
+  id_malla        Int             @default(autoincrement())
+  id_asignatura   Int
+  nivel_sugerido  BigInt
+  Asignatura      Asignatura      @relation(fields: [id_asignatura], references: [id_asignatura], onDelete: Cascade)
+  MallaCurricular MallaCurricular @relation(fields: [id_malla], references: [id_malla], onDelete: Cascade)
+
+  @@id([id_malla, id_asignatura])
+}
