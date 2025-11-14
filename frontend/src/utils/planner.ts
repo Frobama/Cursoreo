@@ -19,6 +19,14 @@ type Node = {
   deps: string[];
 };
 
+const falseprereq: string[] = ["DDOC-01184", "EAIN-01184", "UNFG-01183", "UNFG-01184", "UNFI-01001", 
+  "UNFI-01184", "DDOC-00102", "DCTE-00002", "UNFG-02294", "DATE-00015", "DCCB-00261", "DCTE-00002", 
+  "SSED-00202", "UNFV-00001", "UNFV-01001", "UNFG-03294", "UNFV-03003", "ECIN-00805", "ECIN-08616",
+  "ECIN-00512", "ECIN-00618", "DAIS-00305", "ECIN-00301", "ECIN-00606", "ECIN-00700", "ECIN-00703",
+  "ECIN-00800", "ECIN-00803", "ECIN-00804", "ECIN-00806", "ECIN-00808", "ECIN-00809", "ECIN-00901",
+  "ECIN-00903", "ECIN-00905", "ECIN-00907", "ECIN-00910", "ECIN-08606"
+];
+
 function normalizePrereqs(raw: string | string[] | undefined): string[] {
   if (!raw) return [];
   if (Array.isArray(raw)) return raw.map(s => String(s).trim().toUpperCase()).filter(Boolean);
@@ -26,20 +34,12 @@ function normalizePrereqs(raw: string | string[] | undefined): string[] {
   return [];
 }
 
-export function buildGraph(malla: Ramo[]) {
+export function buildGraph(malla: Ramo[], falseprereqlist: String[]) {
   const map = new Map<string, Node>();
   for (const r of malla) {
     map.set(r.codigo, { ramo: r, indegree: 0, deps: [] });
     
   }
-  const falseprereq: string[] = ["DDOC-01184", "EAIN-01184", "UNFG-01183", "UNFG-01184", "UNFI-01001", 
-      "UNFI-01184", "DDOC-00102", "DCTE-00002", "UNFG-02294", "DATE-00015", "DCCB-00261", "DCTE-00002", 
-      "SSED-00202", "UNFV-00001", "UNFV-01001", "UNFG-03294", "UNFV-03003", "ECIN-00805", "ECIN-08616",
-      "ECIN-00512", "ECIN-00618", "DAIS-00305", "ECIN-00301", "ECIN-00606", "ECIN-00700", "ECIN-00703",
-      "ECIN-00800", "ECIN-00803", "ECIN-00804", "ECIN-00806", "ECIN-00808", "ECIN-00809", "ECIN-00901",
-      "ECIN-00903", "ECIN-00905", "ECIN-00907", "ECIN-00910", "ECIN-08606"];
-    
-  
   for (const r of malla) {
     const raw = r.prereq;
     
@@ -55,19 +55,16 @@ export function buildGraph(malla: Ramo[]) {
       const rn = map.get(r.codigo);
       if (!rn) continue;
 
-      // Si el prerequisito está en la lista de excepciones, lo ignoramos completamente
-      if (falseprereq.includes(p)) {
-        
-        // Ignorar prerequisito falso
-        continue;
-      }
+      // si el prerequisito esta en la lista de excepciones se ignora
+      if (falseprereqlist.includes(p)) continue;
+      
 
       const pn = map.get(p);
       if (pn) {
         pn.deps.push(r.codigo);
         rn.indegree++;
       } else {
-        // prereq no encontrado: lo contamos para detectar error luego
+        // prereq no encontrado
         rn.indegree++;
       }
     }
@@ -79,10 +76,10 @@ export function buildGraph(malla: Ramo[]) {
 export function hasCycle(graph: Map<string, Node>) {
   const q: string[] = [];
   const indeg = new Map<string, number>();
-  // Track processed nodes to identify cycle members
+  
   const processed = new Set<string>();
 
-  // Initialize indegrees and queue
+  
   for (const [k, v] of graph) {
     indeg.set(k, v.indegree);
     if (v.indegree === 0) q.push(k);
@@ -125,13 +122,8 @@ export function hasCycle(graph: Map<string, Node>) {
   return removed !== graph.size;
 }
 
-function sanitizeMalla(malla: Ramo[]): Ramo[] {
-  const falseprereq: string[] = ["DDOC-01184", "EAIN-01184", "UNFG-01183", "UNFG-01184", "UNFI-01001", 
-  "UNFI-01184", "DDOC-00102", "DCTE-00002", "UNFG-02294", "DATE-00015", "DCCB-00261", "DCTE-00002", 
-  "SSED-00202", "UNFV-00001", "UNFV-01001", "UNFG-03294", "UNFV-03003", "ECIN-00805", "ECIN-08616",
-  "ECIN-00512", "ECIN-00618", "DAIS-00305", "ECIN-00301", "ECIN-00606", "ECIN-00700", "ECIN-00703",
-  "ECIN-00800", "ECIN-00803", "ECIN-00804", "ECIN-00806", "ECIN-00808", "ECIN-00809", "ECIN-00901",
-  "ECIN-00903", "ECIN-00905", "ECIN-00907", "ECIN-00910", "ECIN-08606"];
+function sanitizeMalla(malla: Ramo[], falseprereq: String[]): Ramo[] {
+
 
   return malla.map(r => {
     const prereqs = normalizePrereqs(r.prereq);
@@ -150,8 +142,8 @@ export function planSemesters(
   approvedSet: Set<string>,
   maxCreditsPerSemester = 35
 ): { plan: PlanSemester[]; remaining: string[]; errors: string[] } {
-  const cleanMalla = sanitizeMalla(malla);
-  const graph = buildGraph(cleanMalla);
+  const cleanMalla = sanitizeMalla(malla, falseprereq);
+  const graph = buildGraph(cleanMalla, falseprereq);
   const errors: string[] = [];
   console.log("Graph construido para planificacion:", graph);
   for (const [codigo, node] of graph.entries()) {
@@ -196,7 +188,7 @@ export function planSemesters(
     const candidates = Array.from(available).map(c => graph.get(c)!.ramo);
     candidates.sort((a, b) => (a.nivel ?? 0) - (b.nivel ?? 0) || a.creditos - b.creditos);
 
-    // Snapshot de lo que ya estaba programado antes de este semestre
+    
     const scheduledBefore = new Set(scheduled);
 
     let credits = 0;
@@ -205,7 +197,6 @@ export function planSemesters(
     for (const r of candidates) {
       if (scheduled.has(r.codigo) || approvedSet.has(r.codigo)) continue;
 
-      // Verificar que todos los prerequisitos estén satisfechos ANTES de este semestre
       const prereqs = normalizePrereqs(r.prereq);
       console.log( r.prereq);
       
