@@ -208,6 +208,197 @@ function validateProjectionPayload(body:any) {
     return { ok: true };
 }
 
+// ============================================
+// ENDPOINT PARA VALIDAR PROYECCIÓN
+// ============================================
+app.post('/api/validar-proyeccion', async (req, res) => {
+    try {
+        const body = req.body;
+        const validation = validateProjectionPayload(body);
+        if (!validation.ok) return res.status(400).json({ error: validation.error });
+
+        const { rut, codigoCarrera, catalogo, plan } = body;
+        const rutNorm = rut.trim();
+
+        // 1. Verificar que el estudiante existe
+        const estudiante = await prisma.estudiante.findUnique({ 
+            where: { rut: rutNorm },
+            include: {
+                EstudianteCarrera: {
+                    include: { Carrera: true }
+                }
+            }
+        });
+
+        if (!estudiante) {
+            return res.status(404).json({ error: 'Estudiante no encontrado' });
+        }
+
+        // 2. Obtener el historial académico del estudiante
+        const historial = await prisma.historialAcademico.findMany({
+            where: { id_estudiante_fk: estudiante.id_estudiante },
+            include: { Asignatura: true }
+        });
+
+        // Asignaturas aprobadas e inscritas
+        const aprobadas = new Set(
+            historial
+                .filter(h => h.estado.toUpperCase() === 'APROBADO')
+                .map(h => h.Asignatura.codigo_asignatura.toUpperCase())
+        );
+
+        const inscritas = new Set(
+            historial
+                .filter(h => h.estado.toUpperCase() === 'INSCRITO')
+                .map(h => h.Asignatura.codigo_asignatura.toUpperCase())
+        );
+
+        // 3. Obtener límites de créditos de la carrera
+        const carreraEstudiante = estudiante.EstudianteCarrera.find(
+            ec => ec.Carrera.codigo_carrera === codigoCarrera
+        );
+
+        const creditosMaxRegular = carreraEstudiante?.Carrera.creditos_max_regular || 30;
+        const creditosMaxSobrecupo = carreraEstudiante?.Carrera.creditos_max_sobrecupo || 35;
+
+        // 4. Validar cada semestre del plan
+        const errores: any[] = [];
+        const advertencias: any[] = [];
+        const asignaturasProyectadas = new Set<string>();
+
+        for (const semEntry of plan) {
+            const semesterNumber = Number(semEntry.semester ?? semEntry.sem ?? semEntry.semestre);
+            if (Number.isNaN(semesterNumber)) continue;
+
+            const courses = Array.isArray(semEntry.courses) ? semEntry.courses : [];
+            let creditosSemestre = 0;
+
+            for (const c of courses) {
+                if (!c || !c.codigo) continue;
+                const codigoNorm = String(c.codigo).trim().toUpperCase();
+
+                // 4.1 Verificar que la asignatura existe
+                const asignatura = await prisma.asignatura.findUnique({
+                    where: { codigo_asignatura: codigoNorm },
+                    include: {
+                        Prerrequisito_Prerrequisito_id_asignatura_fkToAsignatura: {
+                            include: {
+                                Asignatura_Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura: true
+                            }
+                        }
+                    }
+                });
+
+                if (!asignatura) {
+                    errores.push({
+                        tipo: 'ASIGNATURA_INEXISTENTE',
+                        semestre: semesterNumber,
+                        codigo: codigoNorm,
+                        mensaje: `La asignatura ${codigoNorm} no existe en el sistema`
+                    });
+                    continue;
+                }
+
+                creditosSemestre += asignatura.creditos;
+
+                // 4.2 Verificar si ya está aprobada
+                if (aprobadas.has(codigoNorm)) {
+                    advertencias.push({
+                        tipo: 'YA_APROBADA',
+                        semestre: semesterNumber,
+                        codigo: codigoNorm,
+                        nombre: asignatura.nombre_asignatura,
+                        mensaje: `${codigoNorm} - ${asignatura.nombre_asignatura} ya está aprobada`
+                    });
+                }
+
+                // 4.3 Verificar si ya está inscrita
+                if (inscritas.has(codigoNorm)) {
+                    advertencias.push({
+                        tipo: 'YA_INSCRITA',
+                        semestre: semesterNumber,
+                        codigo: codigoNorm,
+                        nombre: asignatura.nombre_asignatura,
+                        mensaje: `${codigoNorm} - ${asignatura.nombre_asignatura} ya está inscrita`
+                    });
+                }
+
+                // 4.4 Verificar prerrequisitos
+                const prerrequisitos = asignatura.Prerrequisito_Prerrequisito_id_asignatura_fkToAsignatura;
+                const faltantes: string[] = [];
+
+                for (const prereq of prerrequisitos) {
+                    const codigoPrereq = prereq.Asignatura_Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura.codigo_asignatura.toUpperCase();
+                    
+                    // Verificar si el prerrequisito está aprobado o se tomará antes en la proyección
+                    const estaAprobado = aprobadas.has(codigoPrereq);
+                    const seTomaraAntes = Array.from(asignaturasProyectadas).some(ap => {
+                        const [semAnt] = ap.split('|');
+                        return parseInt(semAnt) < semesterNumber && ap.includes(codigoPrereq);
+                    });
+
+                    if (!estaAprobado && !seTomaraAntes) {
+                        faltantes.push(codigoPrereq);
+                    }
+                }
+
+                if (faltantes.length > 0) {
+                    errores.push({
+                        tipo: 'PRERREQUISITOS_NO_CUMPLIDOS',
+                        semestre: semesterNumber,
+                        codigo: codigoNorm,
+                        nombre: asignatura.nombre_asignatura,
+                        faltantes: faltantes,
+                        mensaje: `${codigoNorm} - ${asignatura.nombre_asignatura} requiere: ${faltantes.join(', ')}`
+                    });
+                }
+
+                // Agregar a proyectadas
+                asignaturasProyectadas.add(`${semesterNumber}|${codigoNorm}`);
+            }
+
+            // 4.5 Verificar límite de créditos
+            if (creditosSemestre > creditosMaxSobrecupo) {
+                errores.push({
+                    tipo: 'EXCEDE_CREDITOS_MAXIMO',
+                    semestre: semesterNumber,
+                    creditos: creditosSemestre,
+                    maximo: creditosMaxSobrecupo,
+                    mensaje: `Semestre ${semesterNumber}: ${creditosSemestre} créditos excede el máximo permitido (${creditosMaxSobrecupo})`
+                });
+            } else if (creditosSemestre > creditosMaxRegular) {
+                advertencias.push({
+                    tipo: 'EXCEDE_CREDITOS_REGULAR',
+                    semestre: semesterNumber,
+                    creditos: creditosSemestre,
+                    regular: creditosMaxRegular,
+                    maximo: creditosMaxSobrecupo,
+                    mensaje: `Semestre ${semesterNumber}: ${creditosSemestre} créditos requiere sobrecupo (regular: ${creditosMaxRegular})`
+                });
+            }
+        }
+
+        // 5. Responder con la validación
+        const esValido = errores.length === 0;
+
+        return res.json({
+            valido: esValido,
+            errores: errores,
+            advertencias: advertencias,
+            resumen: {
+                totalErrores: errores.length,
+                totalAdvertencias: advertencias.length,
+                creditosMaxRegular: creditosMaxRegular,
+                creditosMaxSobrecupo: creditosMaxSobrecupo
+            }
+        });
+
+    } catch (error: any) {
+        console.error('POST /api/validar-proyeccion error:', error);
+        return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
 app.post('/api/proyecciones', async (req, res) => {
     try {
         const body = req.body;
