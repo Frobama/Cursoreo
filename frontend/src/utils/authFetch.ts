@@ -27,13 +27,14 @@ export const authFetch = async (url: string, options: AuthFetchOptions = {}): Pr
         headers
     });
     
-    // Si el token expiró o es inválido (401 o 403), limpiar el localStorage
+    // Si el token expiró o es inválido (401 o 403), limpiar el localStorage y emitir evento
     if (response.status === 401 || response.status === 403) {
         console.warn('⚠️ Token expirado o inválido, cerrando sesión...');
         localStorage.removeItem('authToken');
         localStorage.removeItem('user');
-        // Opcional: redirigir al login
-        // window.location.href = '/';
+        
+        // Emitir evento personalizado para que App.tsx pueda escucharlo
+        window.dispatchEvent(new CustomEvent('auth:token-expired'));
     }
     
     return response;

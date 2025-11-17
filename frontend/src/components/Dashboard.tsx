@@ -8,6 +8,7 @@ import { planSemesters } from "../utils/planner";
 import type { Ramo as PlannerRamo, PlanSemester } from "../utils/planner";
 import { saveAvanceCurricular, getAvanceCurricular } from "../utils/localStorageManager";
 import { saveProjectionToServer } from "../api/projection";
+import { authGet } from "../utils/authFetch";
 
 // Types
 export type RamoCompleto = {
@@ -123,7 +124,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
         }
         setCarreraActiva(carreraActual);
 
-        const res = await fetch(
+        const res = await authGet(
           `http://localhost:3001/api/avance?rut=${userData.rut}&codcarrera=${carreraActual.codigo}&catalogo=${carreraActual.catalogo}`
         );
         
@@ -143,7 +144,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
         setRamosInscritos(inscritos);
         setRamosAprobados(aprobados);
         
-        const resMalla = await fetch(
+        const resMalla = await authGet(
           `http://localhost:3001/api/mallas?codigoCarrera=${carreraActual.codigo}&catalogo=${carreraActual.catalogo}`
         );
 
@@ -245,13 +246,14 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
     if (!carreraActiva) return;
     try {
       setSavingProjection(true);
+      const token = localStorage.getItem('authToken');
       await saveProjectionToServer({
         rut: userData.rut,
         codigoCarrera: carreraActiva.codigo,
         catalogo: carreraActiva.catalogo,
         tipo: 'recommended',
         plan
-      } as any);
+      } as any, { token: token || undefined });
       alert('Proyección recomendada guardada');
     } catch (err: any) {
       console.error('Error guardando proyeccion: ' + (err.message ?? ''));
@@ -264,13 +266,14 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
     if (!carreraActiva) return;
     try {
       setSavingProjection(true);
+      const token = localStorage.getItem('authToken');
       await saveProjectionToServer({
         rut: userData.rut,
         codigoCarrera: carreraActiva.codigo,
         catalogo: carreraActiva.catalogo,
         tipo: 'manual',
         plan
-      } as any);
+      } as any, { token: token || undefined });
       alert('Proyección manual guardada');
     } catch (err: any) {
       console.error('Error guardando proyeccion: ' + (err.message ?? ''));

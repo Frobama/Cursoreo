@@ -13,6 +13,19 @@ function App() {
       const foundUser = JSON.parse(loggedUser);
       setUser(foundUser);
     }
+
+    // Listener para logout automático cuando el token expire
+    const handleTokenExpired = () => {
+      console.log('🔒 Token expirado, cerrando sesión automáticamente');
+      handleLogout();
+    };
+
+    window.addEventListener('auth:token-expired', handleTokenExpired);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('auth:token-expired', handleTokenExpired);
+    };
   }, []);
 
   const handleLoginSuccess = (userData: any) => {
