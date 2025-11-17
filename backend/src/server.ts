@@ -7,6 +7,27 @@ import dotenv from 'dotenv';
 // Cargar variables de entorno
 dotenv.config();
 
+// ============================================
+// VALIDAR VARIABLES DE ENTORNO REQUERIDAS
+// ============================================
+const requiredEnvVars = [
+    'DATABASE_URL',
+    'HAWAII_API_URL',
+    'HAWAII_AUTH_TOKEN',
+    'PUCLARO_API_URL'
+];
+
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
+
+if (missingEnvVars.length > 0) {
+    console.error('❌ ERROR: Faltan las siguientes variables de entorno requeridas:');
+    missingEnvVars.forEach(varName => console.error(`   - ${varName}`));
+    console.error('\n💡 Por favor, copia .env.example a .env y configura los valores correctos.');
+    process.exit(1);
+}
+
+console.log('✅ Variables de entorno cargadas correctamente');
+
 // Cliente de Prisma para la base de datos
 const prisma = new PrismaClient();
 
@@ -50,13 +71,11 @@ app.get('/api/mallas', async (req, res) => {
         return res.status(400).json({ error: 'Faltan los parámetros codigoCarrera y catalogo'});
     }
 
-    const externalApiUrl = `https://losvilos.ucn.cl/hawaii/api/mallas?${codigoCarrera}-${catalogo}`;
-
-    const authToken = 'jf400fejof13f';
+    const externalApiUrl = `${process.env.HAWAII_API_URL}/mallas?${codigoCarrera}-${catalogo}`;
 
     const requestOptions = {
         headers: {
-            'X-HAWAII-AUTH': authToken
+            'X-HAWAII-AUTH': process.env.HAWAII_AUTH_TOKEN || ''
         }
     };
 
@@ -81,16 +100,16 @@ app.get('/api/avance', async (req, res) => {
     }
 
     try {
-        // 1. Obtener la malla (sin cambios)
+        // 1. Obtener la malla
         const mallaResponse = await axios.get(
-            `https://losvilos.ucn.cl/hawaii/api/mallas?${codcarrera}-${catalogo}`,
-            { headers: { 'X-HAWAII-AUTH': 'jf400fejof13f' } }
+            `${process.env.HAWAII_API_URL}/mallas?${codcarrera}-${catalogo}`,
+            { headers: { 'X-HAWAII-AUTH': process.env.HAWAII_AUTH_TOKEN || '' } }
         );
         const malla: RamoMalla[] = mallaResponse.data;
 
-        // 2. Obtener el avance (sin cambios)
+        // 2. Obtener el avance
         const avanceResponse = await axios.get(
-            'https://puclaro.ucn.cl/eross/avance/avance.php',
+            `${process.env.PUCLARO_API_URL}/avance.php`,
             { params: { rut, codcarrera } }
         );
         const avance: RamoAvance[] = avanceResponse.data;
@@ -175,7 +194,7 @@ app.get('/api/login', async (req, res) => {
     const encodedEmail = encodeURIComponent(email as string);
     const encodedPassword = encodeURIComponent(password as string);
 
-    const externalLoginUrl = `https://puclaro.ucn.cl/eross/avance/login.php?email=${encodedEmail}&password=${encodedPassword}`;
+    const externalLoginUrl = `${process.env.PUCLARO_API_URL}/login.php?email=${encodedEmail}&password=${encodedPassword}`;
 
     console.log("Solicitando login");
 
