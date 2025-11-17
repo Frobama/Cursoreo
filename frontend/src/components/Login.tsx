@@ -37,6 +37,12 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 throw new Error(data.error);
             }
 
+            // Guardar token JWT en localStorage
+            if (data.token) {
+                localStorage.setItem("authToken", data.token);
+                console.log("🔑 Token JWT guardado en localStorage");
+            }
+
             const userData = {...data, email: correo};
 
             localStorage.setItem("user", JSON.stringify(userData));

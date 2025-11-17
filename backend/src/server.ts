@@ -3,6 +3,7 @@ import cors from 'cors';
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -14,19 +15,20 @@ const requiredEnvVars = [
     'DATABASE_URL',
     'HAWAII_API_URL',
     'HAWAII_AUTH_TOKEN',
-    'PUCLARO_API_URL'
+    'PUCLARO_API_URL',
+    'JWT_SECRET'
 ];
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingEnvVars.length > 0) {
-    console.error('❌ ERROR: Faltan las siguientes variables de entorno requeridas:');
+    console.error('ERROR: Faltan las siguientes variables de entorno requeridas:');
     missingEnvVars.forEach(varName => console.error(`   - ${varName}`));
-    console.error('\n💡 Por favor, copia .env.example a .env y configura los valores correctos.');
+    console.error('\nPor favor, copia .env.example a .env y configura los valores correctos.');
     process.exit(1);
 }
 
-console.log('✅ Variables de entorno cargadas correctamente');
+console.log('Variables de entorno cargadas correctamente');
 
 // Cliente de Prisma para la base de datos
 const prisma = new PrismaClient();
@@ -63,6 +65,26 @@ type RamoAvanceCompleto = {
 
 app.use(cors());
 app.use(express.json());
+
+// ============================================
+// MIDDLEWARE DE AUTENTICACIÓN JWT
+// ============================================
+const verificarToken = (req: any, res: any, next: any) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) {
+        return res.status(401).json({ error: 'Token no proporcionado' });
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET as string);
+        req.user = decoded; // Agregar información del usuario al request
+        next();
+    } catch (error) {
+        return res.status(403).json({ error: 'Token inválido o expirado' });
+    }
+};
 
 app.get('/api/mallas', async (req, res) => {
     const { codigoCarrera, catalogo } = req.query;
@@ -170,11 +192,11 @@ app.get('/api/avance', async (req, res) => {
 
         // NUEVO: Guardar malla en BD (async, no bloquea la respuesta)
         guardarMallaEnBD(malla, codcarrera as string, catalogo as string)
-            .catch((err: any) => console.error('❌ Error guardando malla en BD:', err));
+            .catch((err: any) => console.error('Error guardando malla en BD:', err));
 
         // NUEVO: Guardar avance en BD (async, no bloquea la respuesta)
         guardarAvanceEnBD(rut as string, avanceUnicoMap, malla, codcarrera as string)
-            .catch((err: any) => console.error('❌ Error guardando avance en BD:', err));
+            .catch((err: any) => console.error('Error guardando avance en BD:', err));
 
         res.json(ramosConEstado);
 
@@ -206,10 +228,33 @@ app.get('/api/login', async (req, res) => {
         if (userData && userData.rut) {
             // Agregar el email al userData ya que la API no lo retorna
             guardarEstudianteEnBD(userData, email as string)
-                .catch((err: any) => console.error('❌ Error guardando estudiante en BD:', err));
-        }
+                .catch((err: any) => console.error('Error guardando estudiante en BD:', err));
+            
+            // Generar JWT token
+            const tokenPayload = {
+                rut: userData.rut,
+                email: email as string,
+                nombre: userData.nombre || '',
+                carreras: userData.carreras || []
+            };
 
-        res.json(userData);
+            const jwtSecret = process.env.JWT_SECRET!;
+            const jwtExpires = (process.env.JWT_EXPIRES_IN || '24h') as string;
+            
+            const token = jwt.sign(tokenPayload, jwtSecret, { expiresIn: jwtExpires as any });
+
+            console.log(`Token JWT generado para ${userData.rut}`);
+
+            // Enviar respuesta con userData y token
+            res.json({
+                ...userData,
+                token,
+                expiresIn: process.env.JWT_EXPIRES_IN || '24h'
+            });
+        } else {
+            // Login fallido
+            res.status(401).json({ error: 'Credenciales inválidas' });
+        }
     } catch (error: any){
         console.log('Error en la API de login:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Error de conexión con el servidor de login.' });
@@ -228,9 +273,9 @@ function validateProjectionPayload(body:any) {
 }
 
 // ============================================
-// ENDPOINT PARA VALIDAR PROYECCIÓN
+// ENDPOINT PARA VALIDAR PROYECCIÓN (Requiere autenticación)
 // ============================================
-app.post('/api/validar-proyeccion', async (req, res) => {
+app.post('/api/validar-proyeccion', verificarToken, async (req, res) => {
     try {
         const body = req.body;
         const validation = validateProjectionPayload(body);
@@ -418,7 +463,10 @@ app.post('/api/validar-proyeccion', async (req, res) => {
     }
 });
 
-app.post('/api/proyecciones', async (req, res) => {
+// ============================================
+// ENDPOINT PARA GUARDAR PROYECCIÓN (Requiere autenticación)
+// ============================================
+app.post('/api/proyecciones', verificarToken, async (req, res) => {
     try {
         const body = req.body;
         console.log("body",body);
@@ -515,7 +563,7 @@ async function guardarMallaEnBD(
     codCarrera: string, 
     catalogo: string
 ) {
-    console.log(`📚 Guardando malla curricular de ${codCarrera}-${catalogo} en BD...`);
+    console.log(`Guardando malla curricular de ${codCarrera}-${catalogo} en BD...`);
 
     try {
         // 1. Buscar o crear la carrera
@@ -524,7 +572,7 @@ async function guardarMallaEnBD(
         });
 
         if (!carrera) {
-            console.log(`📚 Creando carrera ${codCarrera}`);
+            console.log(`Creando carrera ${codCarrera}`);
             carrera = await prisma.carrera.create({
                 data: {
                     codigo_carrera: codCarrera,
@@ -542,7 +590,7 @@ async function guardarMallaEnBD(
         });
 
         if (!mallaCurricular) {
-            console.log(`📚 Creando malla ${codCarrera}-${catalogo}`);
+            console.log(`Creando malla ${codCarrera}-${catalogo}`);
             mallaCurricular = await prisma.mallaCurricular.create({
                 data: {
                     id_carrera_fk: carrera.id_carrera,
@@ -601,12 +649,12 @@ async function guardarMallaEnBD(
             }
         }
 
-        console.log(`✅ Malla ${codCarrera}-${catalogo} guardada:`);
-        console.log(`   📝 Asignaturas nuevas: ${asignaturasCreadas}`);
-        console.log(`   🔗 Relaciones MallaAsignatura creadas: ${relacionesCreadas}`);
+        console.log(`Malla ${codCarrera}-${catalogo} guardada:`);
+        console.log(`   Asignaturas nuevas: ${asignaturasCreadas}`);
+        console.log(`   Relaciones MallaAsignatura creadas: ${relacionesCreadas}`);
 
     } catch (error: any) {
-        console.error('❌ Error en guardarMallaEnBD:', error.message);
+        console.error('Error en guardarMallaEnBD:', error.message);
         throw error;
     }
 }
@@ -646,11 +694,11 @@ async function guardarPrerrequisitos(idAsignatura: number, prereqString: string)
                     });
                 }
             } else {
-                console.warn(`⚠️ Prerrequisito ${codigoPrereq} no encontrado en BD`);
+                console.warn(`Prerrequisito ${codigoPrereq} no encontrado en BD`);
             }
         }
     } catch (error: any) {
-        console.error(`❌ Error guardando prerrequisitos:`, error.message);
+        console.error(`Error guardando prerrequisitos:`, error.message);
     }
 }
 
@@ -659,13 +707,13 @@ async function guardarPrerrequisitos(idAsignatura: number, prereqString: string)
 // ============================================
 async function guardarEstudianteEnBD(userData: any, emailFromRequest: string) {
     try {
-        console.log('🔍 Datos recibidos en guardarEstudianteEnBD:', JSON.stringify(userData, null, 2));
+        console.log('Datos recibidos en guardarEstudianteEnBD:', JSON.stringify(userData, null, 2));
         
         const { rut, carreras } = userData;
         const email = emailFromRequest; // Usar el email del request de login
 
         if (!rut || !email) {
-            console.warn('⚠️ Datos incompletos para guardar estudiante');
+            console.warn('Datos incompletos para guardar estudiante');
             console.log('   RUT:', rut);
             console.log('   Email:', email);
             return;
@@ -698,7 +746,7 @@ async function guardarEstudianteEnBD(userData: any, emailFromRequest: string) {
                 });
 
                 if (!carreraDB) {
-                    console.log(`📚 Creando carrera ${codigo}`);
+                    console.log(`Creando carrera ${codigo}`);
                     carreraDB = await prisma.carrera.create({
                         data: {
                             codigo_carrera: codigo,
@@ -716,7 +764,7 @@ async function guardarEstudianteEnBD(userData: any, emailFromRequest: string) {
                 });
 
                 if (!relacionExiste) {
-                    console.log(`🔗 Vinculando estudiante con carrera ${codigo}`);
+                    console.log(`Vinculando estudiante con carrera ${codigo}`);
                     await prisma.estudianteCarrera.create({
                         data: {
                             id_estudiante_fk: estudiante.id_estudiante,
@@ -728,10 +776,10 @@ async function guardarEstudianteEnBD(userData: any, emailFromRequest: string) {
             }
         }
 
-        console.log(`✅ Estudiante ${rut} guardado en BD`);
+        console.log(`Estudiante ${rut} guardado en BD`);
 
     } catch (error: any) {
-        console.error('❌ Error en guardarEstudianteEnBD:', error.message);
+        console.error('Error en guardarEstudianteEnBD:', error.message);
         throw error;
     }
 }
@@ -745,7 +793,7 @@ async function guardarAvanceEnBD(
     malla: RamoMalla[],
     codCarrera: string
 ) {
-    console.log(`💾 Guardando avance de ${rut} en BD...`);
+    console.log(`Guardando avance de ${rut} en BD...`);
 
     try {
         // 1. Buscar estudiante en BD
@@ -754,7 +802,7 @@ async function guardarAvanceEnBD(
         });
 
         if (!estudiante) {
-            console.log(`⚠️ Estudiante ${rut} no encontrado en BD. Debe hacer login primero.`);
+            console.log(`Estudiante ${rut} no encontrado en BD. Debe hacer login primero.`);
             return;
         }
 
@@ -767,7 +815,7 @@ async function guardarAvanceEnBD(
             );
 
             if (!ramoEnMalla) {
-                console.warn(`⚠️ Asignatura ${codigoCurso} no encontrada en malla`);
+                console.warn(`Asignatura ${codigoCurso} no encontrada en malla`);
                 continue;
             }
 
@@ -777,7 +825,7 @@ async function guardarAvanceEnBD(
             });
 
             if (!asignatura) {
-                console.log(`📝 Creando asignatura ${codigoCurso}`);
+                console.log(`Creando asignatura ${codigoCurso}`);
                 asignatura = await prisma.asignatura.create({
                     data: {
                         codigo_asignatura: codigoCurso,
@@ -790,7 +838,7 @@ async function guardarAvanceEnBD(
             // 2.3 Parsear período 
             // Soporta formatos: "2024-1", "20241", "2024/1", "2024.1"
             if (!datosCurso.period) {
-                console.warn(`⚠️ Período faltante para ${codigoCurso}`);
+                console.warn(`Período faltante para ${codigoCurso}`);
                 continue;
             }
             
@@ -813,7 +861,7 @@ async function guardarAvanceEnBD(
             }
             
             if (!ano || !periodo) {
-                console.warn(`⚠️ Formato de período inválido: ${datosCurso.period}`);
+                console.warn(`Formato de período inválido: ${datosCurso.period}`);
                 console.log(`   Formatos esperados: "2024-1", "20241", "2024/1", "2024.1"`);
                 continue;
             }
@@ -860,24 +908,24 @@ async function guardarAvanceEnBD(
         console.log(`✅ Avance de ${rut} guardado exitosamente en BD`);
 
     } catch (error: any) {
-        console.error('❌ Error en guardarAvanceEnBD:', error.message);
+        console.error('Error en guardarAvanceEnBD:', error.message);
         throw error;
     }
 }
 
 app.listen(port, async () => {
-    console.log(`🚀 Servidor escuchando en http://localhost:${port}`);
+    console.log(`Servidor escuchando en http://localhost:${port}`);
     
     // Test de conexión a la base de datos
     try {
         await prisma.$connect();
-        console.log(`✅ Base de datos: Conectada a Supabase`);
+        console.log(`Base de datos: Conectada a Supabase`);
         
         // Verificar que podamos hacer queries
         const estudiantesCount = await prisma.estudiante.count();
-        console.log(`📊 Estudiantes en BD: ${estudiantesCount}`);
+        console.log(`Estudiantes en BD: ${estudiantesCount}`);
     } catch (error: any) {
-        console.error(`❌ Error conectando a BD:`, error.message);
-        console.error(`🔍 DATABASE_URL configurado:`, process.env.DATABASE_URL ? 'SÍ' : 'NO');
+        console.error(`Error conectando a BD:`, error.message);
+        console.error(`DATABASE_URL configurado:`, process.env.DATABASE_URL ? 'SÍ' : 'NO');
     }
 });
