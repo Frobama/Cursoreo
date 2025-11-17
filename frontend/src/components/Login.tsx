@@ -50,7 +50,11 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             onLoginSuccess(userData);
             console.log("Login exitoso:", userData);
         } catch (err:any) {
-            setError(err.message || "Credenciales incorrectas o error en la conexión");
+            // Cambiar mensaje "Failed to fetch" por algo más amigable
+            const errorMessage = err.message === "Failed to fetch" 
+                ? "No se pudo conectar con el servidor" 
+                : err.message || "Credenciales incorrectas o error en la conexión";
+            setError(errorMessage);
         } finally {
             setIsLoading(false);
         }

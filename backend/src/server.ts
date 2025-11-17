@@ -86,7 +86,7 @@ const verificarToken = (req: any, res: any, next: any) => {
     }
 };
 
-app.get('/api/mallas', async (req, res) => {
+app.get('/api/mallas', verificarToken, async (req, res) => {
     const { codigoCarrera, catalogo } = req.query;
 
     if (!codigoCarrera || !catalogo) {
@@ -114,7 +114,7 @@ app.get('/api/mallas', async (req, res) => {
 
 // Modificar el endpoint /api/avance
 // Modificar el endpoint /api/avance
-app.get('/api/avance', async (req, res) => {
+app.get('/api/avance', verificarToken, async (req, res) => {
     const { rut, codcarrera, catalogo } = req.query;
 
     if (!rut || !codcarrera || !catalogo) {
@@ -258,6 +258,20 @@ app.get('/api/login', async (req, res) => {
     } catch (error: any){
         console.log('Error en la API de login:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Error de conexión con el servidor de login.' });
+    }
+});
+
+// Endpoint para validar token JWT
+app.get('/api/validar-token', verificarToken, async (req: any, res: any) => {
+    // Si llegamos aquí, el middleware verificarToken ya validó el token
+    // req.user contiene los datos del token decodificado
+    try {
+        res.json({
+            valid: true,
+            user: req.user
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al validar token' });
     }
 });
 

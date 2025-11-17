@@ -3,16 +3,49 @@ import Login from './components/Login';
 import ucnLogo from './assets/UCN.png'
 import eicLogo from './assets/eic.png'
 import Dashboard from './components/Dashboard';
+import { authGet } from './utils/authFetch';
 
 function App() {
   const [user, setUser] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loggedUser = localStorage.getItem("user");
-    if(loggedUser) {
-      const foundUser = JSON.parse(loggedUser);
-      setUser(foundUser);
-    }
+    // Validar token al cargar la app
+    const validateToken = async () => {
+      const token = localStorage.getItem("authToken");
+      const savedUser = localStorage.getItem("user");
+
+      if (!token || !savedUser) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Validar token con el backend
+        const response = await authGet('http://localhost:3001/api/validar-token');
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.valid) {
+            // Token válido, cargar usuario
+            setUser(JSON.parse(savedUser));
+          } else {
+            // Token inválido, limpiar localStorage
+            handleLogout();
+          }
+        } else {
+          // Error al validar, limpiar localStorage
+          handleLogout();
+        }
+      } catch (error) {
+        console.error('Error validando token:', error);
+        handleLogout();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    validateToken();
 
     // Listener para logout automático cuando el token expire
     const handleTokenExpired = () => {
@@ -35,7 +68,22 @@ function App() {
   const handleLogout = () => {
     setUser(null);
     localStorage.removeItem("user");
+    localStorage.removeItem("authToken");
   };
+
+  // Mostrar pantalla de carga mientras valida el token
+  if (loading) {
+    return (
+      <div className="gradient-background">
+        <h1>Cursoreo</h1>
+        <main className="appMain">
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <p>Validando sesión...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <>{user ? (
