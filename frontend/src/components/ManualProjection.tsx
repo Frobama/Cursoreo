@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { type Ramo, type PlanSemester } from '../utils/planner';
 import styles from './ManualProjection.module.css';
+import HamburgerMenu from './HamburgerMenu';
 
 type props = {
     availableCourses: Ramo[];
@@ -211,6 +212,7 @@ const ManualProjection: React.FC<props> = ({availableCourses, approvedCourses, m
 
     return (
         <div className={styles.container}>
+            <HamburgerMenu />
             {Array.from({length: Math.min(currentSemesters, 15) }, (_, idx) => {
                 const semester = idx +1;
                 return (

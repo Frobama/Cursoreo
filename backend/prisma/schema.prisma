@@ -121,6 +121,7 @@ model Proyeccion {
   id_estudiante_fk  Int
   nombre_proyeccion String           @db.VarChar(255)
   fecha_creacion    DateTime?        @default(now()) @db.Timestamp(6)
+  favorita          Boolean          @default(false)
   ItemProyeccion    ItemProyeccion[]
   Estudiante        Estudiante       @relation(fields: [id_estudiante_fk], references: [id_estudiante], onDelete: NoAction, onUpdate: NoAction)
 }
