@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import styles from "./Dashboard.module.css";
 import MallaVisualizer from "./MallaVisualizer";
+<<<<<<< Updated upstream
+=======
+import PlanVisualizer from "./PlanVisualizer";
+import ProjectionSelector from "./ProjectionSelector"
+import ManualProjection from './ManualProjection';
+import HamburgerMenu from './HamburgerMenu';
+>>>>>>> Stashed changes
 import { planSemesters } from "../utils/planner";
 import type { Ramo as PlannerRamo, PlanSemester } from "../utils/planner";
 import {
@@ -137,10 +144,17 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
   };
 
   return (
+<<<<<<< Updated upstream
     <>
       <div className={styles.backWhite}>
         <div className={styles.blueBar}></div>
         <h1 className={styles.blackH1}>Área Personal</h1>
+=======
+    <div className={styles.backWhite}>
+      <div className={styles.blueBar}></div>
+      <HamburgerMenu />
+      <h1 className={styles.blackH1}>Área Personal</h1>
+>>>>>>> Stashed changes
 
         <div className={styles.container}>
           <img
@@ -194,6 +208,7 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
         )}
 
         {vistaActual === 'plan' && plan && (
+<<<<<<< Updated upstream
           <div className={styles.planContainer}>
             <h3>Plan sugerido</h3>
             {plan.map((s) => (
@@ -211,6 +226,9 @@ const Dashboard: React.FC<DashboardProps> = ({ userData, onLogout }) => {
               </div>
             ))}
           </div>
+=======
+          <PlanVisualizer plan={plan} userData={userData} carrera={carreraActiva ?? null} />
+>>>>>>> Stashed changes
         )}
 
         {vistaActual === 'malla' && carreraActiva && mallaCompleta.length > 0 ? (

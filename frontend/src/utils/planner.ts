@@ -26,7 +26,175 @@ function normalizePrereqs(raw: string | string[] | undefined): string[] {
   return [];
 }
 
+<<<<<<< Updated upstream
 export function buildGraph(malla: Ramo[]) {
+=======
+/**
+ * Detecta automáticamente los prerequisitos falsos/problemáticos que causan ciclos.
+ * Itera removiendo prerequisitos hasta que no haya ciclos.
+ * Retorna la lista de prerequisitos que fueron removidos (falseprereqs).
+ */
+function detectCyclePrereqs(malla: Ramo[]): string[] {
+  const falsePrereqs = new Set<string>();
+  let currentMalla = malla;
+  let iterations = 0;
+  const maxIterations = 100; // Evitar bucle infinito
+
+  while (iterations < maxIterations) {
+    iterations++;
+    
+    // Construir grafo sin falseprereqs conocidos
+    const graph = buildGraphWithExclusions(currentMalla, Array.from(falsePrereqs));
+    
+    // Verificar si hay ciclos
+    if (!hasCycle(graph)) {
+      
+      return Array.from(falsePrereqs);
+    }
+    
+    // Encontrar qué prerequisitos están causando ciclos
+    const cyclePrereqs = findCycleEdges(currentMalla, Array.from(falsePrereqs));
+    
+    if (cyclePrereqs.length === 0) {
+      // No se encontraron más prerequisitos que remover
+      break;
+    }
+    
+    // Agregar los primeros prerequisitos problemáticos a la lista de exclusión
+    cyclePrereqs.slice(0, Math.max(1, Math.ceil(cyclePrereqs.length / 3))).forEach(p => {
+      falsePrereqs.add(p);
+    });
+    
+    console.log(`🔄 Iteración ${iterations}: Excluyendo ${cyclePrereqs.length} prerequisitos problemáticos`);
+  }
+
+  
+  return Array.from(falsePrereqs);
+}
+
+/**
+ * Construye un grafo excluyendo los prerequisitos en la lista de exclusión.
+ */
+function buildGraphWithExclusions(malla: Ramo[], excludedPrereqs: string[]): Map<string, Node> {
+  const map = new Map<string, Node>();
+  for (const r of malla) {
+    map.set(r.codigo, { ramo: r, indegree: 0, deps: [] });
+  }
+  
+  for (const r of malla) {
+    const raw = r.prereq;
+    let prereqs: string[] = [];
+    
+    if (Array.isArray(raw)) {
+      prereqs = raw.map(s => String(s).trim().toUpperCase()).filter(Boolean);
+    } else if (typeof raw === 'string') {
+      prereqs = raw.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    }
+
+    for (const p of prereqs) {
+      const rn = map.get(r.codigo);
+      if (!rn) continue;
+
+      // Ignorar si está en la lista de exclusión
+      if (excludedPrereqs.includes(p)) continue;
+
+      const pn = map.get(p);
+      if (pn) {
+        pn.deps.push(r.codigo);
+        rn.indegree++;
+      } else {
+        // Prerequisito no encontrado en la malla
+        rn.indegree++;
+      }
+    }
+    
+  }
+  
+  return map;
+}
+
+/**
+ * Identifica los prerequisitos que están formando ciclos.
+ * Usa Kahn's para identificar nodos en ciclos y luego sus aristas.
+ */
+function findCycleEdges(malla: Ramo[], excludedPrereqs: string[]): string[] {
+  const graph = buildGraphWithExclusions(malla, excludedPrereqs);
+  const indeg = new Map<string, number>();
+  const processed = new Set<string>();
+  const q: string[] = [];
+
+  for (const [k, v] of graph) {
+    indeg.set(k, v.indegree);
+    if (v.indegree === 0) q.push(k);
+  }
+
+  while (q.length) {
+    const cur = q.shift()!;
+    processed.add(cur);
+    
+    for (const nxt of graph.get(cur)!.deps) {
+      const newIndeg = (indeg.get(nxt) ?? 0) - 1;
+      indeg.set(nxt, newIndeg);
+      
+      if (newIndeg === 0) {
+        q.push(nxt);
+      }
+    }
+  }
+
+  // Nodos que quedaron sin procesar están en ciclos
+  const cycleNodes = new Set<string>();
+  for (const [k] of graph) {
+    if (!processed.has(k)) {
+      cycleNodes.add(k);
+    }
+  }
+
+  // Encontrar los prerequisitos (aristas) de los nodos en ciclos
+  const cyclePrereqs = new Set<string>();
+  for (const node of cycleNodes) {
+    const ramo = graph.get(node)?.ramo;
+    if (ramo) {
+      const prereqs = normalizePrereqs(ramo.prereq);
+      for (const p of prereqs) {
+        if (cycleNodes.has(p)) {
+          cyclePrereqs.add(p);
+        }
+      }
+    }
+  }
+
+  return Array.from(cyclePrereqs);
+}
+
+/**
+ * Detecta automáticamente los prerequisitos que no existen en la malla.
+ * Retorna la lista de prerequisitos faltantes que deben ser excluidos.
+ */
+function detectMissingPrereqs(malla: Ramo[]): string[] {
+  const mallaCodigosSet = new Set(malla.map(r => r.codigo.trim().toUpperCase()));
+  const missingPrereqs = new Set<string>();
+
+  for (const ramo of malla) {
+    const prereqs = normalizePrereqs(ramo.prereq);
+    for (const p of prereqs) {
+      // Si el prerequisito no está en la malla, agregarlo a la lista de exclusión
+      if (!mallaCodigosSet.has(p)) {
+        missingPrereqs.add(p);
+      }
+    }
+  }
+
+  if (missingPrereqs.size > 0) {
+    console.log(`⚠️ Detectados ${missingPrereqs.size} prerequisitos no encontrados en malla:`, Array.from(missingPrereqs));
+  }
+
+  return Array.from(missingPrereqs);
+}
+
+export function buildGraph(malla: Ramo[], falseprereqlist: String[]) {
+  console.log("Building graph with falseprereqs:", falseprereqlist);
+>>>>>>> Stashed changes
   const map = new Map<string, Node>();
   for (const r of malla) {
     map.set(r.codigo, { ramo: r, indegree: 0, deps: [] });
@@ -107,20 +275,7 @@ export function hasCycle(graph: Map<string, Node>) {
     }
   }
 
-  {/*if (removed !== graph.size) {
-    console.log("\n=== CICLO DETECTADO ===");
-    console.log("Ramos involucrados en ciclos:");
-    for (const [k, v] of graph) {
-      if (!processed.has(k)) {
-        const node = graph.get(k)!;
-        console.log(`\nRamo: ${k} (${node.ramo.asignatura})`);
-        console.log(`  Prerrequisitos:`, normalizePrereqs(node.ramo.prereq));
-        console.log(`  Es prerrequisito de:`, node.deps);
-        console.log(`  Indegree final:`, indeg.get(k));
-      }
-    }
-    console.log("=====================\n");
-  }*/}
+  
 
   return removed !== graph.size;
 }
@@ -146,24 +301,30 @@ function sanitizeMalla(malla: Ramo[]): Ramo[] {
 
 export function planSemesters(
   malla: Ramo[],
-  InscriptedSet: Set<string>,
+  _inscriptedSet: Set<string>,
   approvedSet: Set<string>,
   maxCreditsPerSemester = 35
 ): { plan: PlanSemester[]; remaining: string[]; errors: string[] } {
+<<<<<<< Updated upstream
   const cleanMalla = sanitizeMalla(malla);
   const graph = buildGraph(cleanMalla);
+=======
+  // Detectar automáticamente los prerequisitos que causan ciclos Y los que no están en la malla
+  const cyclePrereqs = detectCyclePrereqs(malla);
+  const missingPrereqs = detectMissingPrereqs(malla);
+  
+  // Combinar ambas listas en una sola lista de exclusión
+  const falseprereq = Array.from(new Set([...cyclePrereqs, ...missingPrereqs]));
+  
+  const cleanMalla = sanitizeMalla(malla, falseprereq);
+  const graph = buildGraph(cleanMalla, falseprereq);
+>>>>>>> Stashed changes
   const errors: string[] = [];
+  
   console.log("Graph construido para planificacion:", graph);
-  for (const [codigo, node] of graph.entries()) {
-    const prereqs = normalizePrereqs(node.ramo.prereq);
-    for (const p of prereqs) {
-      
-      if (!graph.has(p)) {
-        errors.push(`Prereq ${p} of ${codigo} not found in malla`);
-      }
-    }
-  }
-
+  console.log(`✅ Exclusiones aplicadas: ${falseprereq.length} prerequisitos excluidos (${cyclePrereqs.length} ciclos, ${missingPrereqs.length} faltantes)`);
+  
+  // Verificar que no hay ciclos después de limpiar
   if (hasCycle(graph)) {
     errors.push('Ciclo detectado en prerequisitos (imposible planificar).');
     return { plan: [], remaining: [], errors };
@@ -185,7 +346,7 @@ export function planSemesters(
 
   const available = new Set<string>();
   for (const [k, d] of indeg.entries()) {
-    if (d <= 0 && !approvedSet.has(k)) available.add(k);
+    if (d <= 0 && !approvedSet.has(k) ) available.add(k);
   }
 
   const plan: PlanSemester[] = [];
@@ -203,13 +364,13 @@ export function planSemesters(
     const thisSemester: Ramo[] = [];
 
     for (const r of candidates) {
-      if (scheduled.has(r.codigo) || approvedSet.has(r.codigo)) continue;
+      if (scheduled.has(r.codigo) || approvedSet.has(r.codigo) ) continue;
 
       // Verificar que todos los prerequisitos estén satisfechos ANTES de este semestre
       const prereqs = normalizePrereqs(r.prereq);
-      console.log( r.prereq);
       
-      const unmet = prereqs.some(p => !(approvedSet.has(p) || scheduledBefore.has(p)));
+      
+      const unmet = prereqs.some(p => !(approvedSet.has(p) || scheduledBefore.has(p) ));
       if (unmet) continue;
 
       if (credits + r.creditos > maxCreditsPerSemester) continue;
