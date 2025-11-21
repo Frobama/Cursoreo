@@ -242,7 +242,7 @@ app.get('/api/login', async (req, res) => {
             const jwtExpires = (process.env.JWT_EXPIRES_IN || '24h') as string;
             
             const token = jwt.sign(tokenPayload, jwtSecret, { expiresIn: jwtExpires as any });
-
+            
             console.log(`Token JWT generado para ${userData.rut}`);
 
             // Enviar respuesta con userData y token
