@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { fetchProjection } from '../api/projection';
+import { fetchProjection } from '../services/projection.service';
 
 export function useProjection() {
     const [data, setData] = useState<any | null>(null);

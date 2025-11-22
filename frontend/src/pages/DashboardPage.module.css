@@ -1,0 +1,154 @@
+/* src/pages/DashboardPage.module.css */
+.dashboard {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 2rem;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
+}
+
+.userName {
+  font-size: 1.2rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.carrera {
+  font-size: 1rem;
+  color: #888;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error {
+  text-align: center;
+  padding: 3rem;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  margin: 2rem;
+}
+
+.errorBanner {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.btnPrimary, .btnSecondary {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btnPrimary {
+  background: #3498db;
+  color: white;
+}
+
+.btnPrimary:hover {
+  background: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+}
+
+.btnSecondary {
+  background: #95a5a6;
+  color: white;
+}
+
+.btnSecondary:hover {
+  background: #7f8c8d;
+  transform: translateY(-2px);
+}
+
+.currentSemester {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.currentSemester h2 {
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.ramosList {
+  list-style: none;
+  padding: 0;
+}
+
+.ramoItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+  border: 1px solid #e0e0e0;
+}
+
+.ramoCodigo {
+  font-weight: 600;
+  color: #3498db;
+  min-width: 100px;
+}
+
+.ramoNombre {
+  flex: 1;
+  padding: 0 1rem;
+}
+
+.ramoCreditos {
+  font-weight: 600;
+  color: #27ae60;
+}
