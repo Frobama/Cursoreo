@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useApp } from '../context/AppContext';
@@ -6,6 +6,7 @@ import { useMalla } from '../hooks/useMalla';
 import { useAvance } from '../hooks/useAvance';
 import { projectionService } from '../services/projection.service';
 import type { SaveProjectionPayload, PlanSemester, RamoCompleto } from '../types';
+import { planSemesters } from '../utils/planner'
 import Loading from '../components/common/Loading';
 import styles from './ManualProjectionPage.module.css';
 
@@ -29,9 +30,11 @@ const ManualProjectionPage = () => {
   
   const [proyeccionNombre, setProyeccionNombre] = useState('');
   const [currentSemesters, setCurrentSemesters] = useState(1);
+  const [visibleSemesters, setVisibleSemesters] = useState(3);
   const [selectedCourses, setSelectedCourses] = useState<Map<number, Set<string>>>(new Map());
   const [semesterCredits, setSemesterCredits] = useState<Map<number, number>>(new Map());
   const [isSaving, setIsSaving] = useState(false);
+  const [isCalculating, setIsCalculating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const maxCreditsPerSemester = 30;
@@ -74,6 +77,27 @@ const ManualProjectionPage = () => {
       setCurrentSemesters(Math.min(Math.max(1, maxNivel), 15));
     }
   }, [ramosDisponibles]);
+
+  const loadMoreSemesters = useCallback(() => {
+    setVisibleSemesters(prev => Math.min(prev + 3, currentSemesters));
+  }, [currentSemesters]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+
+      if (scrollTop + windowHeight >= documentHeight - 200) {
+        if (visibleSemesters < currentSemesters) {
+          loadMoreSemesters();
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [visibleSemesters, currentSemesters, loadMoreSemesters]);
 
   const getValidPrereqs = (ramo: RamoCompleto): string[] => {
     if (!ramo.prereq || ramo.prereq === '-') return [];
@@ -134,6 +158,68 @@ const ManualProjectionPage = () => {
       return canTake;
     });
   };
+
+  const calculateEfficientProjection = useCallback(() => {
+    setIsCalculating(true);
+    setError(null);
+
+    try {
+      const ramosPlannerFormat = ramosDisponibles.map(r => ({
+        codigo: r.codigo,
+        asignatura: r.asignatura,
+        creditos: r.creditos,
+        nivel: r.nivel,
+        prereq: r.prereq
+      }));
+
+      const approvedSet = new Set(ramosAprobados.map(r => r.codigo));
+      const inscriptedSet = new Set(ramosInscritos.map(r => r.codigo));
+
+      const { plan, remaining, errors } = planSemesters(
+        ramosPlannerFormat,
+        inscriptedSet,
+        approvedSet,
+        maxCreditsPerSemester
+      );
+
+      if (errors.length > 0) {
+        setError(`Errores en la planificación:\n${errors.join('\n')}`);
+        console.error('Errores de planificación:', errors);
+      }
+
+      if (remaining.length > 0) {
+        console.warn(`⚠️ ${remaining.length} ramos no pudieron ser planificados:`, remaining);
+      }
+
+      const newSelectedCourses = new Map<number, Set<string>>();
+      const newSemesterCredits = new Map<number, number>();
+
+      plan.forEach((semester) => {
+        const semesterIndex = semester.semester - 1; // 0-indexed
+        const courseCodes = new Set(semester.courses.map(c => c.codigo));
+        newSelectedCourses.set(semesterIndex, courseCodes);
+        newSemesterCredits.set(semesterIndex, semester.totalCredits);
+      });
+
+      setSelectedCourses(newSelectedCourses);
+      setSemesterCredits(newSemesterCredits);
+      setCurrentSemesters(Math.max(plan.length, 1));
+      setVisibleSemesters(Math.min(plan.length, 3));
+
+      const totalRamos = plan.reduce((sum, sem) => sum + sem.courses.length, 0);
+      const message =
+        `Proyección calculada exitosamente\n\n` +
+        `Semestres necesarios: ${plan.length}\n` +
+        `Total de ramos planificados: ${totalRamos}\n` +
+        (remaining.length > 0 ? `Ramos sin planificar: ${remaining.length}` : '');
+
+      alert(message);
+    } catch (err) {
+      setError('Error al calcular la proyección automática');
+    } finally {
+      setIsCalculating(false);
+    }
+  }, [ramosDisponibles, ramosAprobados, ramosInscritos, maxCreditsPerSemester]);
 
   const toggleCourse = (ramo: RamoCompleto, semester: number) => {
     const semesterSet = new Set(selectedCourses.get(semester) || []);
@@ -301,12 +387,26 @@ const ManualProjectionPage = () => {
         />
       </div>
 
+      <div className={styles.autoProjectionSection}>
+        <button
+          onClick={calculateEfficientProjection}
+          disabled={isCalculating || ramosDisponibles.length === 0}
+          className={styles.autoBtn}
+        >
+          {isCalculating ? 'Calculando...' : 'Calcular Proyección Más Eficiente'}
+        </button>
+        <p className={styles.autoInfo}>
+          El sistema calculará automáticamente la proyección más eficiente respetando prerrequisitos
+          y optimizando la cantidad de semestres, para que la fecha de egreso sea lo antes posible.
+        </p>
+      </div> 
+
       <div className={styles.info}>
         <p>💡 Solo se muestran los ramos que puedes tomar en cada semestre según tus prerrequisitos.</p>
       </div>
 
       <div className={styles.semestersContainer}>
-        {Array.from({ length: currentSemesters }, (_, index) => {
+        {Array.from({ length: visibleSemesters }, (_, index) => {
           const semester = index;
           const credits = semesterCredits.get(semester) || 0;
           const selectedInThisSemester = selectedCourses.get(semester) || new Set();
@@ -374,6 +474,12 @@ const ManualProjectionPage = () => {
             </div>
           );
         })}
+
+        {visibleSemesters < currentSemesters && (
+          <button onClick={loadMoreSemesters} className={styles.loadMoreBtn}>
+            Cargar más semestres ({visibleSemesters} de {currentSemesters})
+          </button>
+        )}
 
         {currentSemesters < 15 && (
           <button onClick={handleAddSemester} className={styles.addSemesterBtn}>

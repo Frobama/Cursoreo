@@ -488,3 +488,90 @@
 .courseButton.selected .courseCode {
   color: rgba(255, 255, 255, 0.85);
 }
+
+.autoProjectionSection {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  text-align: center;
+  color: white;
+}
+
+.autoBtn {
+  padding: 1rem 2rem;
+  background: white;
+  color: #667eea;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  margin-bottom: 1rem;
+}
+
+.autoBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.autoBtn:disabled {
+  background: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.autoInfo {
+  margin: 0;
+  font-size: 0.95rem;
+  opacity: 0.95;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Botón de cargar más */
+.loadMoreBtn {
+  width: 100%;
+  padding: 1.5rem;
+  background: white;
+  border: 2px dashed #007bff;
+  border-radius: 12px;
+  color: #007bff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.loadMoreBtn:hover {
+  background: #f0f8ff;
+  border-color: #0056b3;
+  color: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+}
+
+/* ...existing code... */
+
+/* Responsive */
+@media (max-width: 768px) {
+  .autoProjectionSection {
+    padding: 1.5rem;
+  }
+
+  .autoBtn {
+    font-size: 1rem;
+    padding: 0.875rem 1.5rem;
+  }
+
+  .loadMoreBtn {
+    padding: 1.25rem;
+    font-size: 1rem;
+  }
+}
