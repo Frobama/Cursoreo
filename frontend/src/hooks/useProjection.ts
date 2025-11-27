@@ -1,26 +1,34 @@
-import { useState, useCallback } from 'react';
-import { fetchProjection } from '../services/projection.service';
+import { useState, useEffect } from 'react';
+import { projectionService } from '../services/projection.service';
 
-export function useProjection() {
-    const [data, setData] = useState<any | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+interface UseProjectionProps {
+  rut: string;
+  codigoCarrera: string;
+  catalogo: string;
+  enabled?: boolean;
+}
 
-    const load = useCallback(async (rut: string, cod: string, cat: string) => {
-        setIsLoading(true); 
-        setError(null);
-        try {
-            const json = await fetchProjection(rut, cod, cat);
-            setData(json);
-            return json;
-        } catch (err: any) {
-            setError(err.message || 'Error cargando proyeccion');
-            setData(null);
-            throw err;
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
+export function useProjections({rut, codigoCarrera, catalogo, enabled = true} : UseProjectionProps) {
+  const [projections, setProjections] = useState([]);
+  const [favorite, setFavorite] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-    return { data, isLoading, error, load};
+  useEffect(() => {
+    if (!enabled || !rut) return;
+    setIsLoading(true);
+
+    Promise.all([
+      projectionService.getProyecciones(rut, codigoCarrera, catalogo),
+      projectionService.getFavoriteProjection(rut, codigoCarrera, catalogo)
+    ])
+      .then(([all, fav]) => {
+        setProjections(all || []);
+        setFavorite(fav?.ok ? fav.proyeccion : null);
+      })
+      .catch((err) => setError(err.message || 'Error al cargar proyecciones'))
+      .finally(() => setIsLoading(false));
+  }, [rut, codigoCarrera, catalogo, enabled]);
+
+  return { projections, favorite, isLoading, error };
 }

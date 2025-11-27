@@ -11,6 +11,7 @@ import NotFoundPage from '../pages/NotFoundPage';
 
 import MainLayout from '../layouts/MainLayout'
 import AuthLayout from '../layouts/AuthLayout'
+import CompareProjectionsPage from '../pages/CompareProjectionsPage';
 
 export const AppRoutes = () => {
     return (
@@ -59,6 +60,15 @@ export const AppRoutes = () => {
                             </ProtectedRoute>
                         }
                     />
+                    <Route
+                        path="/proyeccion/comparar"
+                        element={
+                            <ProtectedRoute>
+                                <CompareProjectionsPage />
+                            </ProtectedRoute>
+                        }
+                    />
+
             </Route>
 
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

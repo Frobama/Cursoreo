@@ -1,0 +1,255 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 900px;
+  width: 90%;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(50px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 24px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.header h2 {
+  margin: 0;
+  color: #1976d2;
+}
+
+.date {
+  margin: 4px 0 0 0;
+  font-size: 14px;
+  color: #666;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #666;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.closeBtn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.actions {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.favoriteBtn {
+  padding: 10px 20px;
+  border: 2px solid #1976d2;
+  background: white;
+  color: #1976d2;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.favoriteBtn:hover {
+  background: #1976d2;
+  color: white;
+}
+
+.isFavorite {
+  background: #ffc107;
+  border-color: #ffc107;
+  color: #333;
+}
+
+.isFavorite:hover {
+  background: #ffb300;
+  border-color: #ffb300;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.content h3 {
+  margin: 0 0 16px 0;
+  color: #333;
+}
+
+.semesters {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+}
+
+.semester {
+  min-width: 280px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.semesterHeader {
+  background: #f5f5f5;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #1976d2;
+}
+
+.semesterHeader h4 {
+  margin: 0;
+  color: #1976d2;
+}
+
+.credits {
+  font-size: 12px;
+  color: #666;
+  font-weight: bold;
+}
+
+.courses {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.courseCard {
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 10px;
+  transition: transform 0.2s;
+}
+
+.courseCard:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.courseCode {
+  font-weight: bold;
+  color: #1976d2;
+  margin-bottom: 4px;
+}
+
+.courseName {
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.courseCredits {
+  font-size: 12px;
+  color: #666;
+}
+
+.summary {
+  display: flex;
+  justify-content: space-around;
+  padding: 20px 24px;
+  border-top: 2px solid #e0e0e0;
+  background: #f9f9f9;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat strong {
+  display: block;
+  font-size: 24px;
+  color: #1976d2;
+  margin-bottom: 4px;
+}
+
+.stat span {
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.favoriteBtn {
+  padding: 10px 20px;
+  border: 2px solid #1976d2;
+  background: white;
+  color: #1976d2;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.favoriteBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading {
+  background: #e3f2fd !important;
+  border-color: #1976d2 !important;
+  color: #1976d2 !important;
+}
+
+/* Spinner animado */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #1976d2;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

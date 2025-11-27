@@ -1,0 +1,98 @@
+.compareContainer {
+  padding: 20px;
+}
+
+.compareContainer h2 {
+  margin-bottom: 24px;
+  color: #1976d2;
+}
+
+.projectionsGrid {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 20px;
+}
+
+.projectionColumn {
+  min-width: 300px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  background: white;
+}
+
+.projectionHeader {
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid #1976d2;
+}
+
+.projectionHeader h3 {
+  margin: 0 0 4px 0;
+  color: #1976d2;
+}
+
+.date {
+  font-size: 12px;
+  color: #666;
+}
+
+.semesterBlock {
+  margin-bottom: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.semesterHeader {
+  background: #f5f5f5;
+  padding: 8px 12px;
+  font-weight: bold;
+  color: #333;
+}
+
+.courses {
+  padding: 8px;
+}
+
+.courseCard {
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 6px;
+}
+
+.courseCode {
+  font-weight: bold;
+  color: #1976d2;
+  font-size: 13px;
+}
+
+.courseName {
+  font-size: 12px;
+  color: #333;
+  margin: 4px 0;
+}
+
+.courseCredits {
+  font-size: 11px;
+  color: #666;
+}
+
+.semesterTotal {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #ddd;
+  font-size: 12px;
+  font-weight: bold;
+  color: #1976d2;
+}
+
+.emptySemester {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}

@@ -123,6 +123,36 @@ export type ProjectionResponse = {
   error?: string;
 };
 
+export type FavoriteProjection = {
+  id_proyeccion: number;
+  nombre_proyeccion: string;
+  tipo: string;
+  fecha_creacion: string;
+  plan: PlanSemester[];
+};
+
+export type Proyeccion = {
+  id_proyeccion: number;
+  nombre_proyeccion: string;
+  fecha_creacion: string;
+  favorita: boolean;
+  ItemProyeccion: ItemProyeccion[];
+};
+
+export type ItemProyeccion = {
+  id_item_proyeccion: number;
+  ano_proyectado: number;
+  semestre_proyectado: number;
+  Asignatura: Asignatura;
+};
+
+export type Asignatura = {
+  id_asignatura: number;
+  codigo_asignatura: string;
+  nombre_asignatura: string;
+  creditos: number;
+};
+
 // ============================================
 // TIPOS DE PRERREQUISITOS
 // ============================================

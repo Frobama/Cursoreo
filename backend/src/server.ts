@@ -36,7 +36,8 @@ const prisma = new PrismaClient();
 const app = express();
 const port = process.env.PORT || 3001;
 
-type RamoMalla = {    codigo: string;
+type RamoMalla = {
+    codigo: string;
     asignatura: string;
     creditos: number;
     nivel: number;
@@ -61,6 +62,7 @@ type RamoAvanceCompleto = {
     status: string;
     nrc?: string;
     period?: string;
+    prereq?: string;
 };
 
 app.use(cors());
@@ -86,11 +88,15 @@ const verificarToken = (req: any, res: any, next: any) => {
     }
 };
 
+// ============================================
+// ENDPOINTS DE MALLAS Y AVANCE
+// ============================================
+
 app.get('/api/mallas', verificarToken, async (req, res) => {
     const { codigoCarrera, catalogo } = req.query;
 
     if (!codigoCarrera || !catalogo) {
-        return res.status(400).json({ error: 'Faltan los parámetros codigoCarrera y catalogo'});
+        return res.status(400).json({ error: 'Faltan los parámetros codigoCarrera y catalogo' });
     }
 
     const externalApiUrl = `${process.env.HAWAII_API_URL}/mallas?${codigoCarrera}-${catalogo}`;
@@ -103,17 +109,15 @@ app.get('/api/mallas', verificarToken, async (req, res) => {
 
     console.log(`Solicitando a la API externa`);
 
-    try{
+    try {
         const response = await axios.get(externalApiUrl, requestOptions);
         res.json(response.data);
     } catch (error) {
         console.log('Error al contactar la API externa:', error);
-        res.status(500).json({ error: 'Hubo un error al obtener la malla.'});
+        res.status(500).json({ error: 'Hubo un error al obtener la malla.' });
     }
 });
 
-// Modificar el endpoint /api/avance
-// Modificar el endpoint /api/avance
 app.get('/api/avance', verificarToken, async (req, res) => {
     const { rut, codcarrera, catalogo } = req.query;
 
@@ -137,20 +141,17 @@ app.get('/api/avance', verificarToken, async (req, res) => {
         const avance: RamoAvance[] = avanceResponse.data;
 
         // --- INICIO DE LA LÓGICA DE DEDUPLICACIÓN INTELIGENTE ---
-
-        // 3a. Definir la prioridad de los estados
         const statusPriority: { [key: string]: number } = {
             'APROBADO': 3,
             'INSCRITO': 2,
             'REPROBADO': 1,
         };
 
-        // 3b. Crear un mapa para guardar el mejor ramo del avance encontrado para cada código
         const avanceUnicoMap = new Map<string, RamoAvance>();
 
         for (const ramo of avance) {
             if (!ramo || !ramo.course) continue;
-            
+
             const codigoNormalizado = ramo.course.trim().toUpperCase();
             const estadoActual = String(ramo.status || "").trim().toUpperCase();
             const prioridadActual = statusPriority[estadoActual] || 0;
@@ -162,19 +163,17 @@ app.get('/api/avance', verificarToken, async (req, res) => {
             } else {
                 const estadoExistente = String(ramoExistente.status || "").trim().toUpperCase();
                 const prioridadExistente = statusPriority[estadoExistente] || 0;
-                
+
                 if (prioridadActual > prioridadExistente) {
                     avanceUnicoMap.set(codigoNormalizado, ramo);
                 }
             }
         }
-        
         // --- FIN DE LA LÓGICA DE DEDUPLICACIÓN ---
 
         // 4. Combinar la malla con los datos de avance únicos y de mayor prioridad
         const ramosConEstado: RamoAvanceCompleto[] = malla.map(ramoMalla => {
             const codigoMallaNormalizado = ramoMalla.codigo.trim().toUpperCase();
-            // Buscamos en nuestro nuevo mapa de ramos únicos
             const ramoAvanceUnico = avanceUnicoMap.get(codigoMallaNormalizado);
 
             return {
@@ -185,7 +184,6 @@ app.get('/api/avance', verificarToken, async (req, res) => {
                 status: ramoAvanceUnico?.status || 'PENDIENTE',
                 nrc: ramoAvanceUnico?.nrc,
                 period: ramoAvanceUnico?.period,
-                // Aquí puedes añadir la propiedad 'prereq' si la necesitas en el frontend
                 prereq: ramoMalla.prereq
             };
         });
@@ -205,6 +203,10 @@ app.get('/api/avance', verificarToken, async (req, res) => {
         res.status(500).json({ error: 'Error al procesar el avance curricular' });
     }
 });
+
+// ============================================
+// ENDPOINTS DE AUTENTICACIÓN
+// ============================================
 
 app.get('/api/login', async (req, res) => {
     const { email, password } = req.query;
@@ -226,10 +228,9 @@ app.get('/api/login', async (req, res) => {
 
         // Si el login es exitoso, guardar/actualizar estudiante en BD
         if (userData && userData.rut) {
-            // Agregar el email al userData ya que la API no lo retorna
             guardarEstudianteEnBD(userData, email as string)
                 .catch((err: any) => console.error('Error guardando estudiante en BD:', err));
-            
+
             // Generar JWT token
             const tokenPayload = {
                 rut: userData.rut,
@@ -240,9 +241,9 @@ app.get('/api/login', async (req, res) => {
 
             const jwtSecret = process.env.JWT_SECRET!;
             const jwtExpires = (process.env.JWT_EXPIRES_IN || '24h') as string;
-            
+
             const token = jwt.sign(tokenPayload, jwtSecret, { expiresIn: jwtExpires as any });
-            
+
             console.log(`Token JWT generado para ${userData.rut}`);
 
             // Enviar respuesta con userData y token
@@ -255,16 +256,13 @@ app.get('/api/login', async (req, res) => {
             // Login fallido
             res.status(401).json({ error: 'Credenciales inválidas' });
         }
-    } catch (error: any){
+    } catch (error: any) {
         console.log('Error en la API de login:', error.response?.data || error.message);
         res.status(error.response?.status || 500).json(error.response?.data || { error: 'Error de conexión con el servidor de login.' });
     }
 });
 
-// Endpoint para validar token JWT
 app.get('/api/validar-token', verificarToken, async (req: any, res: any) => {
-    // Si llegamos aquí, el middleware verificarToken ya validó el token
-    // req.user contiene los datos del token decodificado
     try {
         res.json({
             valid: true,
@@ -275,7 +273,11 @@ app.get('/api/validar-token', verificarToken, async (req: any, res: any) => {
     }
 });
 
-function validateProjectionPayload(body:any) {
+// ============================================
+// FUNCIONES DE VALIDACIÓN
+// ============================================
+
+function validateProjectionPayload(body: any) {
     if (!body) return { ok: false, error: 'Cuerpo vacío' };
     const { rut, codigoCarrera, catalogo, tipo, plan } = body;
     if (!rut || typeof rut !== 'string') return { ok: false, error: 'rut inválido' };
@@ -287,8 +289,10 @@ function validateProjectionPayload(body:any) {
 }
 
 // ============================================
-// ENDPOINT PARA VALIDAR PROYECCIÓN (Requiere autenticación)
+// ENDPOINTS DE PROYECCIONES
 // ============================================
+
+// POST /api/validar-proyeccion - Validar proyección antes de guardar
 app.post('/api/validar-proyeccion', verificarToken, async (req, res) => {
     try {
         const body = req.body;
@@ -299,7 +303,7 @@ app.post('/api/validar-proyeccion', verificarToken, async (req, res) => {
         const rutNorm = rut.trim();
 
         // 1. Verificar que el estudiante existe
-        const estudiante = await prisma.estudiante.findUnique({ 
+        const estudiante = await prisma.estudiante.findUnique({
             where: { rut: rutNorm },
             include: {
                 EstudianteCarrera: {
@@ -407,7 +411,7 @@ app.post('/api/validar-proyeccion', verificarToken, async (req, res) => {
 
                 for (const prereq of prerrequisitos) {
                     const codigoPrereq = prereq.Asignatura_Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura.codigo_asignatura.toUpperCase();
-                    
+
                     // Verificar si el prerrequisito está aprobado o se tomará antes en la proyección
                     const estaAprobado = aprobadas.has(codigoPrereq);
                     const seTomaraAntes = Array.from(asignaturasProyectadas).some(ap => {
@@ -477,54 +481,70 @@ app.post('/api/validar-proyeccion', verificarToken, async (req, res) => {
     }
 });
 
-// ============================================
-// ENDPOINT PARA GUARDAR PROYECCIÓN (Requiere autenticación)
-// ============================================
+// POST /api/proyecciones - Guardar nueva proyección
 app.post('/api/proyecciones', verificarToken, async (req, res) => {
     try {
         const body = req.body;
-        console.log("body",body);
+        console.log("📩 POST /api/proyecciones body:", JSON.stringify(body, null, 2));
+
         const validation = validateProjectionPayload(body);
-        if(!validation.ok) return res.status(400).json({ error: validation.error});
-        
-        const payload = {
-            rut: String(req.body.rut).trim(),
-            codigoCarrera: String(req.body.codigoCarrera).trim(),
-            catalogo: String(req.body.catalogo).trim(),
-            tipo: req.body.tipo,
-            plan: req.body.plan,
-            createdAt: new Date()
-        };
+        if (!validation.ok) {
+            console.log("❌ Validación fallida:", validation.error);
+            return res.status(400).json({ error: validation.error });
+        }
+
+        console.log("✅ Validación exitosa");
 
         const { rut, codigoCarrera, catalogo, tipo, plan, nombre_proyeccion } = body;
 
         const rutNorm = rut.trim();
+        console.log(`🔍 Buscando estudiante con RUT: ${rutNorm}`);
 
-        const estudiante = await prisma.estudiante.findUnique({ where : {rut: rutNorm} });
-        if(!estudiante) {
-            return res.status(404).json({ error: 'Estudiante no encontrado'});
+        const estudiante = await prisma.estudiante.findUnique({ where: { rut: rutNorm } });
+        if (!estudiante) {
+            console.log("❌ Estudiante no encontrado");
+            return res.status(404).json({ error: 'Estudiante no encontrado' });
         }
 
+        console.log(`✅ Estudiante encontrado: ${estudiante.id_estudiante}`);
+
         const missingAsignaturas: string[] = [];
-        const itemsToCreate: { id_asignatura_fk: number; ano_proyectado:number; semestre_proyectado: number }[] = [];
+        const itemsToCreate: { id_asignatura_fk: number; ano_proyectado: number; semestre_proyectado: number }[] = [];
 
         const currentYear = new Date().getFullYear();
+        console.log(`📅 Año actual para proyección: ${currentYear}`);
+        console.log(`📚 Procesando ${plan.length} semestres...`);
 
         for (const semEntry of plan) {
             const semesterNumber = Number(semEntry.semester ?? semEntry.sem ?? semEntry.semestre);
-            if (Number.isNaN(semesterNumber)) continue;
+            if (Number.isNaN(semesterNumber)) {
+                console.log(`⚠️ Semestre inválido: ${JSON.stringify(semEntry)}`);
+                continue;
+            }
 
+            console.log(`  📖 Semestre ${semesterNumber}: ${semEntry.courses.length} cursos`);
             const courses = Array.isArray(semEntry.courses) ? semEntry.courses : [];
+
             for (const c of courses) {
-                if (!c || !c.codigo) continue;
+                if (!c || !c.codigo) {
+                    console.log(`    ⚠️ Curso sin código: ${JSON.stringify(c)}`);
+                    continue;
+                }
+
                 const codigoNorm = String(c.codigo).trim().toUpperCase();
+                console.log(`    🔎 Buscando asignatura: ${codigoNorm}`);
+
                 const asignatura = await prisma.asignatura.findUnique({
-                    where: { codigo_asignatura: codigoNorm} 
+                    where: { codigo_asignatura: codigoNorm }
                 });
-                if(!asignatura) {
+
+                if (!asignatura) {
+                    console.log(`    ❌ Asignatura no encontrada: ${codigoNorm}`);
                     missingAsignaturas.push(codigoNorm);
                     continue;
                 }
+
+                console.log(`    ✅ Asignatura encontrada: ${asignatura.nombre_asignatura}`);
                 itemsToCreate.push({
                     id_asignatura_fk: asignatura.id_asignatura,
                     ano_proyectado: currentYear,
@@ -533,6 +553,8 @@ app.post('/api/proyecciones', verificarToken, async (req, res) => {
             }
         }
 
+        console.log(`📊 Items a crear (antes deduplicación): ${itemsToCreate.length}`);
+
         const uniqueItems = Array.from(
             itemsToCreate.reduce((map, it) => {
                 if (!map.has(it.id_asignatura_fk)) map.set(it.id_asignatura_fk, it);
@@ -540,7 +562,16 @@ app.post('/api/proyecciones', verificarToken, async (req, res) => {
             }, new Map<number, typeof itemsToCreate[0]>()).values()
         );
 
+        console.log(`📊 Items únicos a crear: ${uniqueItems.length}`);
+        console.log(`⚠️ Asignaturas no encontradas: ${missingAsignaturas.join(', ') || 'ninguna'}`);
+
+        if (uniqueItems.length === 0) {
+            console.log("⚠️ No hay items válidos para crear proyección");
+            return res.status(400).json({ error: 'No hay asignaturas válidas en el plan' });
+        }
+
         // Crear con nested create (sin transacción manual)
+        console.log(`💾 Creando proyección: ${nombre_proyeccion}`);
         const created = await prisma.proyeccion.create({
             data: {
                 id_estudiante_fk: estudiante.id_estudiante,
@@ -557,45 +588,222 @@ app.post('/api/proyecciones', verificarToken, async (req, res) => {
             include: { ItemProyeccion: true }
         });
 
-        return res.status(201).json({ 
-            ok: true, 
-            id: created.id_proyeccion, 
-            missingAsignaturas: Array.from(new Set(missingAsignaturas)) 
+        console.log(`✅ Proyección creada: ID ${created.id_proyeccion}`);
+        return res.status(201).json({
+            ok: true,
+            id: created.id_proyeccion,
+            missingAsignaturas: Array.from(new Set(missingAsignaturas))
         });
-    
+
     } catch (error: any) {
-        console.error('POST /api/proyecciones error:', error);
+        console.error('❌ POST /api/proyecciones error:', error);
         return res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
 
-// ============================================
-// FUNCIÓN PARA GUARDAR MALLA CURRICULAR EN BD
-// ============================================
-async function guardarMallaEnBD(
-    malla: RamoMalla[], 
-    codCarrera: string, 
-    catalogo: string
-) {
-    console.log(`Guardando malla curricular de ${codCarrera}-${catalogo} en BD...`);
+// GET /api/proyecciones - Obtener todas las proyecciones de un estudiante
+app.get('/api/proyecciones', verificarToken, async (req, res) => {
+    const { rut } = req.query;
+
+    if (!rut) {
+        return res.status(400).json({ error: 'Parámetro rut es requerido' });
+    }
 
     try {
-        // 1. Buscar o crear la carrera
+        const estudiante = await prisma.estudiante.findUnique({
+            where: { rut: String(rut) }
+        });
+
+        if (!estudiante) {
+            return res.status(404).json({ error: 'Estudiante no encontrado' });
+        }
+
+        const proyecciones = await prisma.proyeccion.findMany({
+            where: { id_estudiante_fk: estudiante.id_estudiante },
+            include: {
+                ItemProyeccion: {
+                    include: { Asignatura: true }
+                }
+            },
+            orderBy: { fecha_creacion: 'desc' }
+        });
+
+        res.json(proyecciones);
+    } catch (err: any) {
+        console.error('❌ Error obteniendo proyecciones:', err);
+        res.status(500).json({ error: 'Error obteniendo proyecciones' });
+    }
+});
+
+// GET /api/proyeccion-favorita - Obtener proyección favorita
+app.get('/api/proyeccion-favorita', verificarToken, async (req, res) => {
+    const { rut, codigo_carrera, catalogo } = req.query;
+
+    if (!rut) {
+        return res.status(400).json({ error: 'Parámetro rut es requerido' });
+    }
+
+    try {
+        const estudiante = await prisma.estudiante.findUnique({
+            where: { rut: String(rut) }
+        });
+
+        if (!estudiante) {
+            return res.status(404).json({ error: 'Estudiante no encontrado' });
+        }
+
+        const proyeccionFavorita = await prisma.proyeccion.findFirst({
+            where: {
+                id_estudiante_fk: estudiante.id_estudiante,
+                favorita: true
+            },
+            include: {
+                ItemProyeccion: {
+                    include: { Asignatura: true }
+                }
+            }
+        });
+
+        if (!proyeccionFavorita) {
+            return res.json({ ok: false, proyeccion: null });
+        }
+
+        // Transformar a formato frontend (PlanSemester[])
+        const itemsAgrupados = proyeccionFavorita.ItemProyeccion.reduce((acc, item) => {
+            const sem = item.semestre_proyectado;
+            if (!acc[sem]) acc[sem] = [];
+            acc[sem].push({
+                codigo: item.Asignatura.codigo_asignatura,
+                asignatura: item.Asignatura.nombre_asignatura,
+                creditos: item.Asignatura.creditos
+            });
+            return acc;
+        }, {} as any);
+
+        const plan = Object.keys(itemsAgrupados)
+            .map(Number)
+            .sort((a, b) => a - b)
+            .map(sem => ({
+                semester: sem,
+                courses: itemsAgrupados[sem],
+                totalCredits: itemsAgrupados[sem].reduce((sum: number, c: any) => sum + c.creditos, 0)
+            }));
+
+        res.json({
+            ok: true,
+            proyeccion: {
+                id_proyeccion: proyeccionFavorita.id_proyeccion,
+                nombre_proyeccion: proyeccionFavorita.nombre_proyeccion,
+                tipo: 'manual',
+                fecha_creacion: proyeccionFavorita.fecha_creacion?.toISOString(),
+                plan
+            }
+        });
+    } catch (err: any) {
+        console.error('❌ Error obteniendo favorita:', err);
+        res.status(500).json({ error: 'Error obteniendo proyección favorita' });
+    }
+});
+
+// POST /api/proyeccion/:id/favorite - Marcar/desmarcar como favorita
+app.post('/api/proyeccion/:id/favorite', verificarToken, async (req, res) => {
+    const id = Number(req.params.id);
+    const { favorita } = req.body as { favorita?: boolean };
+
+    try {
+        const proyeccion = await prisma.proyeccion.findUnique({
+            where: { id_proyeccion: id }
+        });
+        if (!proyeccion) {
+            return res.status(404).json({ error: 'Proyección no encontrada' });
+        }
+
+        const estudianteId = proyeccion.id_estudiante_fk;
+
+        let setFavorita = favorita;
+        if (setFavorita === undefined) {
+            setFavorita = !proyeccion.favorita;
+        }
+
+        if (setFavorita) {
+            // Desmarcar otras favoritas del mismo estudiante
+            await prisma.$transaction([
+                prisma.proyeccion.updateMany({
+                    where: { id_estudiante_fk: estudianteId, favorita: true },
+                    data: { favorita: false }
+                }),
+                prisma.proyeccion.update({
+                    where: { id_proyeccion: id },
+                    data: { favorita: true }
+                })
+            ]);
+            console.log(`⭐ Proyección ${id} marcada como favorita`);
+        } else {
+            await prisma.proyeccion.update({
+                where: { id_proyeccion: id },
+                data: { favorita: false }
+            });
+            console.log(`☆ Proyección ${id} desmarcada como favorita`);
+        }
+
+        res.json({ ok: true, favorita: setFavorita });
+    } catch (err: any) {
+        console.error('❌ Error marcando favorita:', err);
+        res.status(500).json({ error: 'Error marcando favorita' });
+    }
+});
+
+// DELETE /api/proyeccion/:id - Eliminar proyección
+app.delete('/api/proyeccion/:id', verificarToken, async (req, res) => {
+    const id = Number(req.params.id);
+
+    try {
+        const proyeccion = await prisma.proyeccion.findUnique({
+            where: { id_proyeccion: id }
+        });
+
+        if (!proyeccion) {
+            return res.status(404).json({ error: 'Proyección no encontrada' });
+        }
+
+        await prisma.proyeccion.delete({
+            where: { id_proyeccion: id }
+        });
+
+        console.log(`🗑️ Proyección ${id} eliminada`);
+        res.json({ ok: true });
+    } catch (err: any) {
+        console.error('❌ Error eliminando proyección:', err);
+        res.status(500).json({ error: 'Error eliminando proyección' });
+    }
+});
+
+// ============================================
+// FUNCIONES AUXILIARES PARA BD
+// ============================================
+
+async function guardarMallaEnBD(
+    malla: RamoMalla[],
+    codCarrera: string,
+    catalogo: string
+) {
+    console.log(`📚 Guardando malla curricular de ${codCarrera}-${catalogo} en BD...`);
+
+    try {
         let carrera = await prisma.carrera.findUnique({
             where: { codigo_carrera: codCarrera }
         });
 
         if (!carrera) {
-            console.log(`Creando carrera ${codCarrera}`);
+            console.log(`📚 Creando carrera ${codCarrera}`);
             carrera = await prisma.carrera.create({
                 data: {
                     codigo_carrera: codCarrera,
-                    nombre_carrera: `Carrera ${codCarrera}`, // TODO: Obtener nombre real
+                    nombre_carrera: `Carrera ${codCarrera}`,
                 }
             });
         }
 
-        // 2. Buscar o crear la Malla (entidad que representa carrera + catálogo)
         let mallaCurricular = await prisma.mallaCurricular.findFirst({
             where: {
                 id_carrera_fk: carrera.id_carrera,
@@ -604,7 +812,7 @@ async function guardarMallaEnBD(
         });
 
         if (!mallaCurricular) {
-            console.log(`Creando malla ${codCarrera}-${catalogo}`);
+            console.log(`📚 Creando malla ${codCarrera}-${catalogo}`);
             mallaCurricular = await prisma.mallaCurricular.create({
                 data: {
                     id_carrera_fk: carrera.id_carrera,
@@ -616,11 +824,9 @@ async function guardarMallaEnBD(
         let asignaturasCreadas = 0;
         let relacionesCreadas = 0;
 
-        // 3. Por cada ramo de la malla, crear asignaturas y relaciones
         for (const ramo of malla) {
             const codigoNormalizado = ramo.codigo.trim().toUpperCase();
 
-            // 3.1 Buscar o crear asignatura
             let asignatura = await prisma.asignatura.findUnique({
                 where: { codigo_asignatura: codigoNormalizado }
             });
@@ -636,7 +842,6 @@ async function guardarMallaEnBD(
                 asignaturasCreadas++;
             }
 
-            // 3.2 Crear relación en MallaAsignatura (si no existe)
             const relacionExistente = await prisma.mallaAsignatura.findUnique({
                 where: {
                     id_malla_id_asignatura: {
@@ -657,41 +862,34 @@ async function guardarMallaEnBD(
                 relacionesCreadas++;
             }
 
-            // 3.3 Guardar prerrequisitos si existen
             if (ramo.prereq && ramo.prereq !== '-') {
                 await guardarPrerrequisitos(asignatura.id_asignatura, ramo.prereq);
             }
         }
 
-        console.log(`Malla ${codCarrera}-${catalogo} guardada:`);
-        console.log(`   Asignaturas nuevas: ${asignaturasCreadas}`);
-        console.log(`   Relaciones MallaAsignatura creadas: ${relacionesCreadas}`);
+        console.log(`✅ Malla ${codCarrera}-${catalogo} guardada:`);
+        console.log(`   📝 Asignaturas nuevas: ${asignaturasCreadas}`);
+        console.log(`   🔗 Relaciones MallaAsignatura creadas: ${relacionesCreadas}`);
 
     } catch (error: any) {
-        console.error('Error en guardarMallaEnBD:', error.message);
+        console.error('❌ Error en guardarMallaEnBD:', error.message);
         throw error;
     }
 }
 
-// ============================================
-// FUNCIÓN PARA GUARDAR PRERREQUISITOS
-// ============================================
 async function guardarPrerrequisitos(idAsignatura: number, prereqString: string) {
     try {
-        // El prereq puede venir en formatos como: "INF-123", "INF-123,INF-124", etc.
         const prereqCodigos = prereqString
             .split(',')
             .map(p => p.trim().toUpperCase())
             .filter(p => p && p !== '-');
 
         for (const codigoPrereq of prereqCodigos) {
-            // Buscar la asignatura prerequisito
             const asignaturaPrereq = await prisma.asignatura.findUnique({
                 where: { codigo_asignatura: codigoPrereq }
             });
 
             if (asignaturaPrereq) {
-                // Verificar si ya existe la relación
                 const prereqExistente = await prisma.prerrequisito.findFirst({
                     where: {
                         id_asignatura_fk: idAsignatura,
@@ -708,59 +906,48 @@ async function guardarPrerrequisitos(idAsignatura: number, prereqString: string)
                     });
                 }
             } else {
-                console.warn(`Prerrequisito ${codigoPrereq} no encontrado en BD`);
+                console.warn(`⚠️ Prerrequisito ${codigoPrereq} no encontrado en BD`);
             }
         }
     } catch (error: any) {
-        console.error(`Error guardando prerrequisitos:`, error.message);
+        console.error(`❌ Error guardando prerrequisitos:`, error.message);
     }
 }
 
-// ============================================
-// FUNCIÓN PARA GUARDAR ESTUDIANTE EN BD
-// ============================================
 async function guardarEstudianteEnBD(userData: any, emailFromRequest: string) {
     try {
-        console.log('Datos recibidos en guardarEstudianteEnBD:', JSON.stringify(userData, null, 2));
-        
+        console.log('🔍 Datos recibidos en guardarEstudianteEnBD:', JSON.stringify(userData, null, 2));
+
         const { rut, carreras } = userData;
-        const email = emailFromRequest; // Usar el email del request de login
+        const email = emailFromRequest;
 
         if (!rut || !email) {
-            console.warn('Datos incompletos para guardar estudiante');
-            console.log('   RUT:', rut);
-            console.log('   Email:', email);
+            console.warn('⚠️ Datos incompletos para guardar estudiante');
             return;
         }
 
         console.log(`👤 Guardando/actualizando estudiante ${rut} en BD...`);
 
-        // Buscar o crear estudiante
         const estudiante = await prisma.estudiante.upsert({
             where: { rut },
-            update: {
-                email,
-                // nombre_completo se puede actualizar si viene en userData
-            },
+            update: { email },
             create: {
                 rut,
                 email,
-                nombre_completo: userData.nombre || 'Nombre pendiente', // Ajusta según lo que retorne la API
+                nombre_completo: userData.nombre || 'Nombre pendiente',
             }
         });
 
-        // Si hay carreras, guardar relación Estudiante-Carrera
         if (carreras && Array.isArray(carreras)) {
             for (const carrera of carreras) {
                 const { codigo, catalogo, nombre } = carrera;
 
-                // Buscar o crear carrera
                 let carreraDB = await prisma.carrera.findUnique({
                     where: { codigo_carrera: codigo }
                 });
 
                 if (!carreraDB) {
-                    console.log(`Creando carrera ${codigo}`);
+                    console.log(`📚 Creando carrera ${codigo}`);
                     carreraDB = await prisma.carrera.create({
                         data: {
                             codigo_carrera: codigo,
@@ -769,7 +956,6 @@ async function guardarEstudianteEnBD(userData: any, emailFromRequest: string) {
                     });
                 }
 
-                // Crear relación Estudiante-Carrera si no existe
                 const relacionExiste = await prisma.estudianteCarrera.findFirst({
                     where: {
                         id_estudiante_fk: estudiante.id_estudiante,
@@ -778,7 +964,7 @@ async function guardarEstudianteEnBD(userData: any, emailFromRequest: string) {
                 });
 
                 if (!relacionExiste) {
-                    console.log(`Vinculando estudiante con carrera ${codigo}`);
+                    console.log(`🔗 Vinculando estudiante con carrera ${codigo}`);
                     await prisma.estudianteCarrera.create({
                         data: {
                             id_estudiante_fk: estudiante.id_estudiante,
@@ -790,56 +976,49 @@ async function guardarEstudianteEnBD(userData: any, emailFromRequest: string) {
             }
         }
 
-        console.log(`Estudiante ${rut} guardado en BD`);
+        console.log(`✅ Estudiante ${rut} guardado en BD`);
 
     } catch (error: any) {
-        console.error('Error en guardarEstudianteEnBD:', error.message);
+        console.error('❌ Error en guardarEstudianteEnBD:', error.message);
         throw error;
     }
 }
 
-// ============================================
-// FUNCIÓN PARA GUARDAR AVANCE EN BASE DE DATOS
-// ============================================
 async function guardarAvanceEnBD(
-    rut: string, 
-    avanceNormalizado: Map<string, RamoAvance>, 
+    rut: string,
+    avanceNormalizado: Map<string, RamoAvance>,
     malla: RamoMalla[],
     codCarrera: string
 ) {
-    console.log(`Guardando avance de ${rut} en BD...`);
+    console.log(`💾 Guardando avance de ${rut} en BD...`);
 
     try {
-        // 1. Buscar estudiante en BD
         const estudiante = await prisma.estudiante.findUnique({
             where: { rut }
         });
 
         if (!estudiante) {
-            console.log(`Estudiante ${rut} no encontrado en BD. Debe hacer login primero.`);
+            console.log(`⚠️ Estudiante ${rut} no encontrado en BD. Debe hacer login primero.`);
             return;
         }
 
-        // 2. Por cada ramo del avance normalizado
         for (const [codigoCurso, datosCurso] of avanceNormalizado.entries()) {
-            
-            // 2.1 Buscar datos del ramo en la malla
-            const ramoEnMalla = malla.find(r => 
+
+            const ramoEnMalla = malla.find(r =>
                 r.codigo.trim().toUpperCase() === codigoCurso
             );
 
             if (!ramoEnMalla) {
-                console.warn(`Asignatura ${codigoCurso} no encontrada en malla`);
+                console.warn(`⚠️ Asignatura ${codigoCurso} no encontrada en malla`);
                 continue;
             }
 
-            // 2.2 Buscar o crear asignatura
             let asignatura = await prisma.asignatura.findUnique({
                 where: { codigo_asignatura: codigoCurso }
             });
 
             if (!asignatura) {
-                console.log(`Creando asignatura ${codigoCurso}`);
+                console.log(`📝 Creando asignatura ${codigoCurso}`);
                 asignatura = await prisma.asignatura.create({
                     data: {
                         codigo_asignatura: codigoCurso,
@@ -849,38 +1028,31 @@ async function guardarAvanceEnBD(
                 });
             }
 
-            // 2.3 Parsear período 
-            // Soporta formatos: "2024-1", "20241", "2024/1", "2024.1"
             if (!datosCurso.period) {
-                console.warn(`Período faltante para ${codigoCurso}`);
+                console.warn(`⚠️ Período faltante para ${codigoCurso}`);
                 continue;
             }
-            
-            // Intentar múltiples formatos
+
             let ano: number | null = null;
             let periodo: number | null = null;
-            
-            // Formato: "2024-1" o "2024/1" o "2024.1"
+
             let match = datosCurso.period.match(/(\d{4})[-\/\.](\d)/);
             if (match) {
                 ano = parseInt(match[1]);
                 periodo = parseInt(match[2]);
             } else {
-                // Formato: "20241" (6 dígitos, últimos 1-2 son el período)
                 match = datosCurso.period.match(/(\d{4})(\d{1,2})/);
                 if (match) {
                     ano = parseInt(match[1]);
                     periodo = parseInt(match[2]);
                 }
             }
-            
+
             if (!ano || !periodo) {
-                console.warn(`Formato de período inválido: ${datosCurso.period}`);
-                console.log(`   Formatos esperados: "2024-1", "20241", "2024/1", "2024.1"`);
+                console.warn(`⚠️ Formato de período inválido: ${datosCurso.period}`);
                 continue;
             }
 
-            // 2.4 Buscar o crear semestre académico
             let semestre = await prisma.semestreAcademico.findFirst({
                 where: { ano, periodo }
             });
@@ -892,7 +1064,6 @@ async function guardarAvanceEnBD(
                 });
             }
 
-            // 2.5 Guardar/actualizar en historial académico
             const estadoNormalizado = datosCurso.status.trim().toUpperCase();
             const nrcNumerico = datosCurso.nrc ? parseInt(datosCurso.nrc) : null;
 
@@ -922,24 +1093,26 @@ async function guardarAvanceEnBD(
         console.log(`✅ Avance de ${rut} guardado exitosamente en BD`);
 
     } catch (error: any) {
-        console.error('Error en guardarAvanceEnBD:', error.message);
+        console.error('❌ Error en guardarAvanceEnBD:', error.message);
         throw error;
     }
 }
 
+// ============================================
+// INICIAR SERVIDOR
+// ============================================
+
 app.listen(port, async () => {
-    console.log(`Servidor escuchando en http://localhost:${port}`);
-    
-    // Test de conexión a la base de datos
+    console.log(`🚀 Servidor escuchando en http://localhost:${port}`);
+
     try {
         await prisma.$connect();
-        console.log(`Base de datos: Conectada a Supabase`);
-        
-        // Verificar que podamos hacer queries
+        console.log(`✅ Base de datos: Conectada a Supabase`);
+
         const estudiantesCount = await prisma.estudiante.count();
-        console.log(`Estudiantes en BD: ${estudiantesCount}`);
+        console.log(`📊 Estudiantes en BD: ${estudiantesCount}`);
     } catch (error: any) {
-        console.error(`Error conectando a BD:`, error.message);
-        console.error(`DATABASE_URL configurado:`, process.env.DATABASE_URL ? 'SÍ' : 'NO');
+        console.error(`❌ Error conectando a BD:`, error.message);
+        console.error(`🔍 DATABASE_URL configurado:`, process.env.DATABASE_URL ? 'SÍ' : 'NO');
     }
 });
