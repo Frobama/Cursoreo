@@ -25,6 +25,24 @@ const ProjectionCompare: React.FC<Props> = ({ projections, mostrarStats }) => {
     )
   ).sort((a, b) => a - b);
 
+    const getCourseStatus = (codigo: string, semester: number, allProjections: FavoriteProjection[]) => {
+    const appearances = allProjections.map(proj => {
+      const found = proj.plan.find(s => 
+        s.courses.some(c => c.codigo === codigo)
+      );
+      return found ? found.semester : null;
+    }).filter(s => s !== null);
+
+    // Si aparece en diferentes semestres, resaltar como "diferente"
+    const uniqueSemesters = new Set(appearances);
+    if (uniqueSemesters.size > 1) return 'different-semester';
+    
+    // Si no aparece en todas las proyecciones, es "único"
+    if (appearances.length < allProjections.length) return 'unique';
+    
+    return 'normal';
+  };
+
     return (
     <div className={styles.compareContainer}>
       <h2>Comparación de Proyecciones</h2>
@@ -54,7 +72,7 @@ const ProjectionCompare: React.FC<Props> = ({ projections, mostrarStats }) => {
                     {semester ? (
                       <div className={styles.courses}>
                         {semester.courses.map((course) => (
-                          <div key={course.codigo} className={styles.courseCard}>
+                          <div key={course.codigo} className={`${styles.courseCard} ${styles[getCourseStatus(course.codigo, semNum, projections)]}`}>
                             <div className={styles.courseCode}>{course.codigo}</div>
                             <div className={styles.courseName}>{course.asignatura}</div>
                             <div className={styles.courseCredits}>{course.creditos} cr</div>

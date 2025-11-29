@@ -96,3 +96,13 @@
   color: #999;
   font-style: italic;
 }
+
+.courseCard.unique {
+  border: 2px solid #ff9800;
+  background: #fff3e0;
+}
+
+.courseCard.different-semester {
+  border: 2px solid #f44336;
+  background: #ffebee;
+}
