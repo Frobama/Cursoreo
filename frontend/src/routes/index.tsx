@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './ProtectedRoute';
 import { PublicRoute } from './PublicRoute';
+import { AdminProtectedRoute } from './AdminProtectedRoute';
 
 import LoginPage from '../pages/LoginPage';
 import DashboardPage from '../pages/DashboardPage';
@@ -8,6 +9,9 @@ import MallaPage from '../pages/MallaPage';
 import ProyeccionPage from '../pages/ProyeccionPage';
 import ManualProjectionPage from '../pages/ManualProjectionPage';
 import NotFoundPage from '../pages/NotFoundPage';
+
+import AdminLogin from '../pages/admin/AdminLogin';
+import AdminDashboard from '../pages/admin/AdminDashboard';
 
 import MainLayout from '../layouts/MainLayout'
 import AuthLayout from '../layouts/AuthLayout'
@@ -23,6 +27,12 @@ export const AppRoutes = () => {
                         <PublicRoute>
                             <LoginPage />
                         </PublicRoute>
+                    }
+                />
+                <Route
+                    path="/admin/login"
+                    element={
+                            <AdminLogin />
                     }
                 />
             </Route>
@@ -71,6 +81,14 @@ export const AppRoutes = () => {
 
             </Route>
 
+            <Route 
+                path="/admin/dashboard" 
+                element={
+                    <AdminProtectedRoute>
+                        <AdminDashboard />
+                    </AdminProtectedRoute>
+                } 
+            />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="*" element={<NotFoundPage />} />
         </Routes>
