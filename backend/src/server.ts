@@ -1114,23 +1114,44 @@ app.get('/api/admin/stats', verificarToken, async (req, res) => {
         const carrerasGroup = await prisma.estudianteCarrera.groupBy({ by: ['id_carrera_fk'] });
         const carrerasActivas = carrerasGroup.length;
 
-        // Ramos más populares entre proyecciones (top N)
+        // Ramos más populares entre proyecciones (top N) — limitar a asignaturas del profesor logueado
         const limit = Number(req.query.limit) || 5;
-        const grouped = await prisma.itemProyeccion.groupBy({
-            by: ['id_asignatura_fk'],
-            _count: { id_item: true },
-            orderBy: { _count: { id_item: 'desc' } },
-            take: limit
-        });
+        let topCourses: Array<{ codigo: string; nombre: string; count: number }> = [];
 
-        const topCourses = await Promise.all(grouped.map(async g => {
-            const asign = await prisma.asignatura.findUnique({ where: { id_asignatura: g.id_asignatura_fk } });
-            return {
-                codigo: asign?.codigo_asignatura || 'UNKNOWN',
-                nombre: asign?.nombre_asignatura || 'Asignatura desconocida',
-                count: g._count.id_item
-            };
-        }));
+        try {
+            const user = (req as any).user as any;
+            if (user && user.id) {
+                // obtener asignaturas asignadas al profesor
+                const profesorId = BigInt(String(user.id));
+                const asigns = await prisma.profesorAsignatura.findMany({
+                    where: { id_profesor_fk: profesorId },
+                    select: { id_asignatura_fk: true }
+                });
+                const asignIds = asigns.map(a => a.id_asignatura_fk);
+
+                if (asignIds.length > 0) {
+                    const grouped = await prisma.itemProyeccion.groupBy({
+                        by: ['id_asignatura_fk'],
+                        where: { id_asignatura_fk: { in: asignIds } },
+                        _count: { id_item: true },
+                        orderBy: { _count: { id_item: 'desc' } },
+                        take: limit
+                    });
+
+                    topCourses = await Promise.all(grouped.map(async g => {
+                        const asign = await prisma.asignatura.findUnique({ where: { id_asignatura: g.id_asignatura_fk } });
+                        return {
+                            codigo: asign?.codigo_asignatura || 'UNKNOWN',
+                            nombre: asign?.nombre_asignatura || 'Asignatura desconocida',
+                            count: g._count.id_item
+                        };
+                    }));
+                }
+            }
+        } catch (err) {
+            console.warn('No se pudieron calcular topCourses específicos del profesor, usando vacío:', err);
+            topCourses = [];
+        }
 
         res.json({
             stats: {

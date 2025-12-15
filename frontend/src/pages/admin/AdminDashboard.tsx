@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAdmin } from '../../context/AdminContext';
 import { adminService } from '../../services/admin.service';
-import type { AdminStats } from '../../types/admin';
+import type { AdminStats, CourseProjection } from '../../types/admin';
 import Loading from '../../components/common/Loading';
 import { 
   HiUsers, 
@@ -19,6 +19,8 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [proyecciones, setProyecciones] = useState<any[] | null>(null);
   const [myAsignaturas, setMyAsignaturas] = useState<string[]>([]);
+  const [assignedAsignaturas, setAssignedAsignaturas] = useState<Array<{ codigo: string; nombre: string }>>([]);
+  const [globalTopCourses, setGlobalTopCourses] = useState<CourseProjection[] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'proyecciones' | 'cursos'>('overview');
   
@@ -41,9 +43,23 @@ const AdminDashboard = () => {
       try {
         const asigns = await adminService.getMyAssignatures();
         setMyAsignaturas(asigns.map(a => a.codigo.toUpperCase()));
+        setAssignedAsignaturas(asigns.map(a => ({ codigo: a.codigo.toUpperCase(), nombre: a.nombre })));
       } catch (err) {
         console.warn('No se pudieron cargar asignaturas del profesor:', err);
         setMyAsignaturas([]);
+        setAssignedAsignaturas([]);
+      }
+      // If the logged user is a Jefe de Carrera, also fetch global top courses
+      try {
+        if (profesor?.rol && profesor.rol.toLowerCase() === 'jefe de carrera') {
+          const global = await adminService.getGlobalTopCourses();
+          setGlobalTopCourses(global.map(g => ({ ...g })));
+        } else {
+          setGlobalTopCourses(null);
+        }
+      } catch (err) {
+        console.warn('No se pudieron cargar top courses globales:', err);
+        setGlobalTopCourses(null);
       }
     } catch (error) {
       console.error('Error al cargar estadísticas:', error);
@@ -51,6 +67,8 @@ const AdminDashboard = () => {
       setIsLoading(false);
     }
   };
+
+  // Nota: mostramos aquí las asignaturas registradas en ProfesorAsignatura para el profesor
 
   const handleSearchProjections = async () => {
     if (!searchRamo && !searchSemestre) {
@@ -60,35 +78,43 @@ const AdminDashboard = () => {
 
     setIsSearching(true);
     try {
-      // TODO: Llamar al endpoint del backend cuando esté disponible
-      // const results = await adminService.searchCourseProjections(searchRamo, searchSemestre);
-      
-      // Por ahora, datos mock para visualizar la UI
-      const mockResults = [
-        {
-          codigo: searchRamo || 'INF-239',
-          nombre: 'Base de Datos',
-          semestre: searchSemestre || '5',
-          totalEstudiantes: 23,
-          estudiantes: [
-            { rut: '12345678-9', nombre: 'Juan Pérez', proyeccion: 'Plan 2024-2' },
-            { rut: '98765432-1', nombre: 'María González', proyeccion: 'Plan Oficial' },
-            { rut: '11223344-5', nombre: 'Pedro Silva', proyeccion: 'Plan Acelerado' },
-          ]
-        },
-        {
-          codigo: searchRamo || 'INF-239',
-          nombre: 'Base de Datos',
-          semestre: (parseInt(searchSemestre || '5') + 1).toString(),
-          totalEstudiantes: 15,
-          estudiantes: [
-            { rut: '55667788-9', nombre: 'Ana Torres', proyeccion: 'Plan 2025-1' },
-            { rut: '99887766-5', nombre: 'Carlos Ruiz', proyeccion: 'Plan Flexible' },
-          ]
+      // Obtener todas las proyecciones desde el backend y filtrar localmente
+      const resp = await adminService.getAllProjections();
+      const proyeccionesData = resp.proyecciones || [];
+
+      const resultsMap: Record<string, any> = {};
+
+      for (const p of proyeccionesData) {
+        const estudiante = p.Estudiante;
+        const nombreProyeccion = p.nombre_proyeccion || '';
+        for (const item of p.ItemProyeccion || []) {
+          const asign = item.Asignatura;
+          const codigo = (asign?.codigo_asignatura || '').toUpperCase();
+          const nombre = asign?.nombre_asignatura || '';
+          const semestre = String(item.semestre_proyectado || item.semestre || '');
+
+          // Filtros por entrada
+          const matchCodigoOrNombre = !searchRamo || codigo.includes(searchRamo.toUpperCase()) || nombre.toLowerCase().includes(searchRamo.toLowerCase());
+          const matchSemestre = !searchSemestre || semestre === String(searchSemestre);
+          if (!matchCodigoOrNombre || !matchSemestre) continue;
+
+          // Si es profesor, limitar a sus asignaturas
+          if (profesor && profesor.rol && profesor.rol.toLowerCase() !== 'jefe de carrera') {
+            if (!myAsignaturas.includes(codigo)) continue;
+          }
+
+          const key = `${codigo}::${semestre}`;
+          if (!resultsMap[key]) {
+            resultsMap[key] = { codigo, nombre, semestre, estudiantes: [], totalEstudiantes: 0 };
+          }
+
+          resultsMap[key].estudiantes.push({ rut: estudiante?.rut, nombre: estudiante?.nombre_completo, proyeccion: nombreProyeccion });
+          resultsMap[key].totalEstudiantes = resultsMap[key].estudiantes.length;
         }
-      ];
-      
-      setSearchResults(mockResults);
+      }
+
+      const finalResults = Object.values(resultsMap).sort((a: any, b: any) => b.totalEstudiantes - a.totalEstudiantes);
+      setSearchResults(finalResults);
     } catch (error) {
       console.error('Error al buscar proyecciones:', error);
       alert('Error al buscar proyecciones');
@@ -174,31 +200,23 @@ const AdminDashboard = () => {
               </div>
             </div>
             
-            {stats?.topCourses && stats.topCourses.length > 0 && (
+            {assignedAsignaturas && assignedAsignaturas.length > 0 && (
               <div className={styles.sectionCard}>
                 <div className={styles.sectionHeader}>
                   <HiStar className={styles.sectionIcon} />
-                  <h3>Top 5 Cursos Más Populares</h3>
+                  <h3>Mis Asignaturas</h3>
                 </div>
                 <div className={styles.topCoursesList}>
-                  {stats.topCourses.slice(0, 5).map((course, idx) => (
-                    <div key={course.codigo} className={styles.topCourseItem}>
+                  {assignedAsignaturas.map((course, idx) => (
+                    <div key={`mine-${course.codigo}`} className={`${styles.topCourseItem} ${styles.myCourse}`}>
                       <div className={styles.courseRank}>#{idx + 1}</div>
                       <div className={styles.courseInfo}>
                         <div className={styles.courseTitle}>
-                          <strong>{course.codigo}</strong>
+                          <strong className={styles.courseCode}>{course.codigo}</strong>
                           <span className={styles.courseName}>{course.nombre}</span>
                         </div>
-                        <div className={styles.courseBar}>
-                          <div 
-                            className={styles.courseBarFill} 
-                            style={{ 
-                              width: `${(course.count / (stats.topCourses[0]?.count || 1)) * 100}%` 
-                            }}
-                          />
-                        </div>
                       </div>
-                      <div className={styles.courseCount}>{course.count}</div>
+                      <div className={styles.myBadge}>Asignada</div>
                     </div>
                   ))}
                 </div>
@@ -349,6 +367,52 @@ const AdminDashboard = () => {
               <div className={styles.emptyState}>
                 <HiChartBar className={styles.emptyIcon} />
                 <p>No hay datos de cursos disponibles</p>
+              </div>
+            )}
+            {/* Global top courses for Jefes de Carrera (rendered below, same style) */}
+            
+            {profesor?.rol && profesor.rol.toLowerCase() === 'jefe de carrera' && (
+              <div style={{ marginTop: 24 }}>
+                <h3> Vista general</h3>
+                {globalTopCourses && globalTopCourses.length > 0 ? (
+                  <div className={styles.coursesTable}>
+                    <div className={styles.tableHeader}>
+                      <span className={styles.colRank}>Rank</span>
+                      <span className={styles.colCode}>Código</span>
+                      <span className={styles.colName}>Nombre</span>
+                      <span className={styles.colCount}>Proyecciones</span>
+                      <span className={styles.colPercent}>% del Total</span>
+                    </div>
+                    {globalTopCourses.map((course, idx) => (
+                      <div key={`global-${course.codigo}`} className={styles.tableRow}>
+                        <span className={styles.colRank}>
+                          <span className={styles.rankBadge}>#{idx + 1}</span>
+                        </span>
+                        <span className={styles.colCode}>{course.codigo}</span>
+                        <span className={styles.colName}>{course.nombre}</span>
+                        <span className={styles.colCount}>
+                          <strong>{course.count}</strong>
+                        </span>
+                        <span className={styles.colPercent}>
+                          <div className={styles.percentBar}>
+                            <div
+                              className={styles.percentFill}
+                              style={{ width: `${(course.count / (stats?.totalProyecciones || 1)) * 100}%` }}
+                            />
+                            <span className={styles.percentText}>
+                              {((course.count / (stats?.totalProyecciones || 1)) * 100).toFixed(1)}%
+                            </span>
+                          </div>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={styles.emptyState} style={{ marginTop: 12 }}>
+                    <HiChartBar className={styles.emptyIcon} />
+                    <p>No hay datos globales de cursos disponibles</p>
+                  </div>
+                )}
               </div>
             )}
           </div>

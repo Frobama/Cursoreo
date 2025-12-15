@@ -30,4 +30,9 @@ export const adminService = {
     const response = await api.get('/api/admin/my-assignatures');
     return response.data.asignaturas as Array<{ codigo: string; nombre: string }>;
   },
+  async getGlobalTopCourses() {
+    // Request global stats (backend should support `global=true` query param to return global topCourses)
+    const response = await api.get('/api/admin/stats', { params: { global: true } });
+    return (response.data.stats?.topCourses || []) as Array<{ codigo: string; nombre: string; count: number }>;
+  },
 };
