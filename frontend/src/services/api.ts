@@ -11,8 +11,11 @@ export const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if(token) {
+    // Prefer admin token if present, otherwise use user token
+    const adminToken = localStorage.getItem('admin_token');
+    const token = adminToken || localStorage.getItem('token');
+    if (token) {
+        config.headers = config.headers || {};
         config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -24,8 +27,15 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // If admin token existed, remove it and redirect to admin login
+      const hadAdmin = !!localStorage.getItem('admin_token');
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      localStorage.removeItem('admin_token');
+      if (hadAdmin) {
+        window.location.href = '/admin/login';
+      } else {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

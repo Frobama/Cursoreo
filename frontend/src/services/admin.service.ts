@@ -8,7 +8,10 @@ export const adminService = {
   },
 
   async getStats(): Promise<AdminStats> {
-    const response = await api.get('/api/admin/stats');
+    const adminToken = localStorage.getItem('admin_token') || localStorage.getItem('token');
+    const response = await api.get('/api/admin/stats', {
+      headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : undefined
+    });
     return response.data.stats;
   },
 
@@ -22,5 +25,9 @@ export const adminService = {
   async getAllProjections(filters?: { carrera?: string; favoritas?: boolean }) {
     const response = await api.get('/api/admin/projections', { params: filters });
     return response.data;
+  },
+  async getMyAssignatures() {
+    const response = await api.get('/api/admin/my-assignatures');
+    return response.data.asignaturas as Array<{ codigo: string; nombre: string }>;
   },
 };

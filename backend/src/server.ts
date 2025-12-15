@@ -3,7 +3,8 @@ import cors from 'cors';
 import axios from 'axios';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
-import jwt from 'jsonwebtoken';
+import './types/express';
+import * as jwt from 'jsonwebtoken';
 
 // Cargar variables de entorno
 dotenv.config();
@@ -1102,6 +1103,50 @@ async function guardarAvanceEnBD(
 // INICIAR SERVIDOR
 // ============================================
 
+// ENDPOINTS ADMIN - Estadísticas
+app.get('/api/admin/stats', verificarToken, async (req, res) => {
+    try {
+        const totalEstudiantes = await prisma.estudiante.count();
+        const totalProyecciones = await prisma.proyeccion.count();
+        const proyeccionesFavoritas = await prisma.proyeccion.count({ where: { favorita: true } });
+
+        // Número de carreras que tienen al menos un estudiante (estudianteCarrera)
+        const carrerasGroup = await prisma.estudianteCarrera.groupBy({ by: ['id_carrera_fk'] });
+        const carrerasActivas = carrerasGroup.length;
+
+        // Ramos más populares entre proyecciones (top N)
+        const limit = Number(req.query.limit) || 5;
+        const grouped = await prisma.itemProyeccion.groupBy({
+            by: ['id_asignatura_fk'],
+            _count: { id_item: true },
+            orderBy: { _count: { id_item: 'desc' } },
+            take: limit
+        });
+
+        const topCourses = await Promise.all(grouped.map(async g => {
+            const asign = await prisma.asignatura.findUnique({ where: { id_asignatura: g.id_asignatura_fk } });
+            return {
+                codigo: asign?.codigo_asignatura || 'UNKNOWN',
+                nombre: asign?.nombre_asignatura || 'Asignatura desconocida',
+                count: g._count.id_item
+            };
+        }));
+
+        res.json({
+            stats: {
+                totalEstudiantes,
+                totalProyecciones,
+                proyeccionesFavoritas,
+                carrerasActivas,
+                topCourses
+            }
+        });
+    } catch (error: any) {
+        console.error('Error GET /api/admin/stats:', error);
+        res.status(500).json({ error: 'Error obteniendo estadísticas' });
+    }
+});
+
 app.listen(port, async () => {
     console.log(`🚀 Servidor escuchando en http://localhost:${port}`);
 
@@ -1114,5 +1159,107 @@ app.listen(port, async () => {
     } catch (error: any) {
         console.error(`❌ Error conectando a BD:`, error.message);
         console.error(`🔍 DATABASE_URL configurado:`, process.env.DATABASE_URL ? 'SÍ' : 'NO');
+    }
+});
+
+// LOGIN ADMIN (Profesores)
+app.post('/api/admin/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        console.log('POST /api/admin/login body:', { email: String(email) });
+        if (!email || !password) return res.status(400).json({ error: 'Faltan email o password' });
+
+        const profesor = await prisma.profesor.findFirst({ where: { correo: String(email) } });
+        if (!profesor) return res.status(401).json({ error: 'Credenciales inválidas' });
+
+        // Nota: la columna en la BD se mapeó a `contrasena` en Prisma
+        if (profesor.contrasena !== String(password)) {
+            return res.status(401).json({ error: 'Credenciales inválidas' });
+        }
+
+        const payload = {
+            id: String(profesor.id),
+            correo: profesor.correo,
+            nombre: profesor.nombre,
+            departamento: profesor.departamento,
+            rol: profesor.rol || 'Profesor'
+        };
+
+        const secret: jwt.Secret = process.env.JWT_SECRET as jwt.Secret;
+        const signOptions: jwt.SignOptions = { expiresIn: (process.env.JWT_EXPIRES_IN || '24h') as unknown as jwt.SignOptions['expiresIn'] };
+        const token = jwt.sign(payload as string | object | Buffer, secret, signOptions);
+
+        // Responder sin la contraseña
+        const profesorSafe = {
+            id: String(profesor.id),
+            nombre: profesor.nombre,
+            correo: profesor.correo,
+            departamento: profesor.departamento,
+            rol: profesor.rol
+        };
+
+        res.json({ profesor: profesorSafe, token, expiresIn: process.env.JWT_EXPIRES_IN || '24h' });
+    } catch (error: any) {
+        console.error('Error POST /api/admin/login:', error?.stack || error);
+        res.status(500).json({ error: error?.message || 'Error en login admin' });
+    }
+});
+
+// GET /api/admin/my-assignatures - Obtener asignaturas asociadas al profesor logueado
+app.get('/api/admin/my-assignatures', verificarToken, async (req, res) => {
+    try {
+        const user = req.user as any;
+        if (!user || !user.id) return res.status(400).json({ error: 'Profesor no identificado en token' });
+        const profesorId = BigInt(user.id);
+
+        const asignaturas = await prisma.profesorAsignatura.findMany({
+            where: { id_profesor_fk: profesorId },
+            include: { Asignatura: true }
+        });
+
+        const result = asignaturas.map(a => ({ codigo: a.Asignatura.codigo_asignatura, nombre: a.Asignatura.nombre_asignatura }));
+        return res.json({ asignaturas: result });
+    } catch (error: any) {
+        console.error('Error GET /api/admin/my-assignatures:', error?.stack || error);
+        res.status(500).json({ error: error?.message || 'Error obteniendo asignaturas del profesor' });
+    }
+});
+
+// GET /api/admin/projections - Listar proyecciones (opcionalmente filtrar por carrera y favoritas)
+app.get('/api/admin/projections', verificarToken, async (req, res) => {
+    try {
+        const carrera = typeof req.query.carrera === 'string' ? req.query.carrera : undefined;
+        const favoritas = String(req.query.favoritas) === 'true';
+
+        const where: any = {};
+        if (favoritas) where.favorita = true;
+
+        if (carrera) {
+            where.Estudiante = {
+                EstudianteCarrera: {
+                    some: {
+                        Carrera: { codigo_carrera: carrera }
+                    }
+                }
+            };
+        }
+
+        const proyecciones = await prisma.proyeccion.findMany({
+            where,
+            include: {
+                Estudiante: {
+                    select: { id_estudiante: true, rut: true, nombre_completo: true, email: true }
+                },
+                ItemProyeccion: {
+                    include: { Asignatura: true }
+                }
+            },
+            orderBy: { fecha_creacion: 'desc' }
+        });
+
+        return res.json({ total: proyecciones.length, proyecciones });
+    } catch (error: any) {
+        console.error('Error GET /api/admin/projections:', error?.stack || error);
+        res.status(500).json({ error: error?.message || 'Error obteniendo proyecciones' });
     }
 });

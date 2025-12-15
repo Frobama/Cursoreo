@@ -26,31 +26,16 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const login = async (email: string, password: string) => {
-    // MOCK LOGIN (eliminar cuando backend esté listo)
-    if (email === 'admin@ucn.cl' && password === 'admin123') {
-      const mockProfesor: Profesor = {
-        rut: '12345678-9',
-        nombre: 'Dr. Juan Pérez',
-        email: 'admin@ucn.cl',
-        departamento: 'Ingeniería de Sistemas',
-        rol: 'PROFESOR'
-      };
-
-      const mockToken = 'mock-jwt-token-12345';
-      
-      localStorage.setItem('admin_token', mockToken);
-      localStorage.setItem('admin_user', JSON.stringify(mockProfesor));
-      setProfesor(mockProfesor);
-      return;
+    setIsLoading(true);
+    try {
+      const data = await adminService.login(email, password);
+      if (!data || !data.token) throw new Error('Respuesta inválida del servidor');
+      localStorage.setItem('admin_token', data.token);
+      localStorage.setItem('admin_user', JSON.stringify(data.profesor));
+      setProfesor(data.profesor as Profesor);
+    } finally {
+      setIsLoading(false);
     }
-
-    throw new Error('Credenciales inválidas');
-
-    // Descomentar cuando backend esté listo:
-    // const data = await adminService.login(email, password);
-    // localStorage.setItem('admin_token', data.token);
-    // localStorage.setItem('admin_user', JSON.stringify(data.profesor));
-    // setProfesor(data.profesor);
   };
 
   const logout = () => {

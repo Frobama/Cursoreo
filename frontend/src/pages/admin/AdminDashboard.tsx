@@ -17,6 +17,8 @@ import styles from './AdminDashboard.module.css';
 const AdminDashboard = () => {
   const { profesor, logout } = useAdmin();
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [proyecciones, setProyecciones] = useState<any[] | null>(null);
+  const [myAsignaturas, setMyAsignaturas] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -25,15 +27,27 @@ const AdminDashboard = () => {
 
   const loadStats = async () => {
     try {
-      const mockStats: AdminStats = {
-        totalEstudiantes: 247,
-        totalProyecciones: 892,
-        proyeccionesFavoritas: 247,
-        carrerasActivas: 5,
-      };
+      setIsLoading(true);
+      const remote = await adminService.getStats();
+      setStats(remote);
+      // Cargar proyecciones y asignaturas del profesor para la lista por semestre
+      try {
+        const projectionsResp = await adminService.getAllProjections();
+        // projectionsResp may be { total, proyecciones } or an array
+        const arr = Array.isArray(projectionsResp) ? projectionsResp : (projectionsResp.proyecciones || projectionsResp);
+        setProyecciones(arr as any[]);
+      } catch (err) {
+        console.warn('No se pudieron cargar proyecciones:', err);
+        setProyecciones([]);
+      }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setStats(mockStats);
+      try {
+        const asigns = await adminService.getMyAssignatures();
+        setMyAsignaturas(asigns.map(a => a.codigo.toUpperCase()));
+      } catch (err) {
+        console.warn('No se pudieron cargar asignaturas del profesor:', err);
+        setMyAsignaturas([]);
+      }
     } catch (error) {
       console.error('Error al cargar estadísticas:', error);
     } finally {
@@ -87,15 +101,63 @@ const AdminDashboard = () => {
 
       <div className={styles.chartsSection}>
         <h2>Estadísticas Detalladas</h2>
+        <h3>Proyecciones por Semestre</h3>
+        <div className={styles.projectionsList}>
+          {proyecciones && proyecciones.length > 0 ? (
+            proyecciones.map(proj => (
+              <div key={proj.id_proyeccion || proj.id || proj.nombre_proyeccion} className={styles.projectionCard}>
+                <div className={styles.projectionHeader}>
+                  <strong>{proj.nombre_proyeccion || proj.nombre || `Proyección ${proj.id_proyeccion || proj.id}`}</strong>
+                  <span className={styles.projectionStudent}>{proj.Estudiante?.nombre_completo || proj.estudiante?.nombre || proj.estudiante?.rut}</span>
+                </div>
+                <ul className={styles.projectionItems}>
+                  {(proj.ItemProyeccion || proj.items || []).sort((a:any,b:any)=> (a.semestre_proyectado||a.sem||0)-(b.semestre_proyectado||b.sem||0)).map((item:any, idx:number)=>{
+                    const codigo = (item.Asignatura?.codigo_asignatura || item.codigo || item.codigo_asignatura || '').toUpperCase();
+                    const isMine = myAsignaturas.includes(codigo);
+                    const sem = item.semestre_proyectado ?? item.sem ?? item.semestre ?? 'N/A';
+                    return (
+                      <li key={idx} className={isMine ? styles.myCourse : ''}>
+                        <span className={styles.itemCode}>{codigo}</span>
+                        <span className={styles.itemName}>{item.Asignatura?.nombre_asignatura || item.nombre || item.asignatura}</span>
+                        <span className={styles.itemSem}>Sem: {sem}</span>
+                        {isMine && <span className={styles.matchBadge}>Asignatura a su cargo</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ))
+          ) : (
+            <div className={styles.chartPlaceholder}>No hay proyecciones disponibles</div>
+          )}
+        </div>
         <div className={styles.placeholderCharts}>
+          <div className={styles.popularCourses}>
+            <h3>Ramos más populares</h3>
+            {stats?.topCourses && stats.topCourses.length > 0 ? (
+              <ul className={styles.courseList}>
+                {stats.topCourses.map((c) => (
+                  <li key={c.codigo} className={styles.courseItem}>
+                    <div className={styles.courseRow}>
+                      <strong className={styles.courseCode}>{c.codigo}</strong>
+                      <span className={styles.courseCount}>{c.count} proyecciones</span>
+                    </div>
+                    <div className={styles.courseName}>{c.nombre}</div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className={styles.chartPlaceholder}>
+                <HiChartBar className={styles.chartIcon} />
+                <span>Ramos más populares</span>
+                <p className={styles.comingSoon}>Sin datos</p>
+              </div>
+            )}
+          </div>
+
           <div className={styles.chartPlaceholder}>
             <HiTrendingUp className={styles.chartIcon} />
             <span>Proyecciones por semestre</span>
-            <p className={styles.comingSoon}>Próximamente</p>
-          </div>
-          <div className={styles.chartPlaceholder}>
-            <HiChartBar className={styles.chartIcon} />
-            <span>Ramos más populares</span>
             <p className={styles.comingSoon}>Próximamente</p>
           </div>
         </div>

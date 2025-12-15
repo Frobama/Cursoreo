@@ -19,6 +19,7 @@ model Asignatura {
   OfertaAcademica                                                        OfertaAcademica[]
   Prerrequisito_Prerrequisito_id_asignatura_fkToAsignatura               Prerrequisito[]      @relation("Prerrequisito_id_asignatura_fkToAsignatura")
   Prerrequisito_Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura Prerrequisito[]      @relation("Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura")
+  profesorAsignaturas                                                    ProfesorAsignatura[]
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
@@ -114,6 +115,29 @@ model Prerrequisito {
   Asignatura_Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura Asignatura @relation("Prerrequisito_id_asignatura_prerrequisito_fkToAsignatura", fields: [id_asignatura_prerrequisito_fk], references: [id_asignatura], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([id_asignatura_fk, id_asignatura_prerrequisito_fk], map: "Prerrequisito_id_asignatura_fk_id_asignatura_prerrequisito__idx")
+}
+
+model Profesor {
+  id           BigInt   @id @default(autoincrement())
+  created_at   DateTime @default(now()) @db.Timestamp(6)
+  nombre       String   @db.Text
+  correo       String   @unique @db.Text
+  departamento String   @db.Text
+  rol          String   @default("Profesor") @db.Text
+  contrasena   String   @map("contraseña") @db.Text
+
+  ProfesorAsignatura ProfesorAsignatura[]
+}
+
+model ProfesorAsignatura {
+  id_profesor_asignatura BigInt @id @default(autoincrement())
+  id_profesor_fk         BigInt
+  id_asignatura_fk       Int
+
+  Profesor   Profesor   @relation(fields: [id_profesor_fk], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Asignatura Asignatura @relation(fields: [id_asignatura_fk], references: [id_asignatura], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("ProfesorAsignatura")
 }
 
 model Proyeccion {

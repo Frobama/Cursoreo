@@ -43,7 +43,7 @@ const AdminLogin = () => {
           <div className={styles.inputGroup}>
             <label>Correo Electrónico</label>
             <div className={styles.inputWrapper}>
-              <MdEmail className={styles.inputIcon} />
+              <span className={styles.inputIcon}><MdEmail /></span>
               <input
                 type="email"
                 value={email}
@@ -57,7 +57,7 @@ const AdminLogin = () => {
           <div className={styles.inputGroup}>
             <label>Contraseña</label>
             <div className={styles.inputWrapper}>
-              <MdLock className={styles.inputIcon} />
+              <span className={styles.inputIcon}><MdLock /></span>
               <input
                 type="password"
                 value={password}
@@ -73,7 +73,7 @@ const AdminLogin = () => {
           <button type="submit" disabled={isLoading} className={styles.submitBtn}>
             {isLoading ? (
               <span className={styles.loading}>
-                <AiOutlineLoading3Quarters className={styles.spinner} />
+                <span className={styles.spinner} />
                 Iniciando sesión...
               </span>
             ) : (
