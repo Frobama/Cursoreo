@@ -1115,14 +1115,23 @@ app.get('/api/admin/stats', verificarToken, async (req, res) => {
         const carrerasActivas = carrerasGroup.length;
 
         // Ramos más populares entre proyecciones (top N) — limitar a asignaturas del profesor logueado
+        // Solo considerar proyecciones favoritas y semestre 1 (próximo semestre)
         const limit = Number(req.query.limit) || 5;
         let topCourses: Array<{ codigo: string; nombre: string; count: number }> = [];
 
         try {
             const user = (req as any).user as any;
             if (user && user.id) {
-                // obtener asignaturas asignadas al profesor
                 const profesorId = BigInt(String(user.id));
+                
+                // Obtener IDs de proyecciones favoritas
+                const proyeccionesFavoritas = await prisma.proyeccion.findMany({
+                    where: { favorita: true },
+                    select: { id_proyeccion: true }
+                });
+                const proyeccionesFavoritasIds = proyeccionesFavoritas.map(p => p.id_proyeccion);
+
+                // Siempre mostrar solo las asignaturas asignadas al profesor (incluso si es Jefe de Carrera)
                 const asigns = await prisma.profesorAsignatura.findMany({
                     where: { id_profesor_fk: profesorId },
                     select: { id_asignatura_fk: true }
@@ -1132,7 +1141,11 @@ app.get('/api/admin/stats', verificarToken, async (req, res) => {
                 if (asignIds.length > 0) {
                     const grouped = await prisma.itemProyeccion.groupBy({
                         by: ['id_asignatura_fk'],
-                        where: { id_asignatura_fk: { in: asignIds } },
+                        where: { 
+                            id_asignatura_fk: { in: asignIds },
+                            id_proyeccion_fk: { in: proyeccionesFavoritasIds },
+                            semestre_proyectado: 1 
+                        },
                         _count: { id_item: true },
                         orderBy: { _count: { id_item: 'desc' } },
                         take: limit
@@ -1165,6 +1178,63 @@ app.get('/api/admin/stats', verificarToken, async (req, res) => {
     } catch (error: any) {
         console.error('Error GET /api/admin/stats:', error);
         res.status(500).json({ error: 'Error obteniendo estadísticas' });
+    }
+});
+
+// GET /api/admin/global-top-courses - Top cursos globales (todas las asignaturas, solo para Jefe de Carrera)
+app.get('/api/admin/global-top-courses', verificarToken, async (req, res) => {
+    try {
+        const user = (req as any).user as any;
+        if (!user || !user.id) {
+            return res.status(401).json({ error: 'Usuario no identificado' });
+        }
+
+        const profesorId = BigInt(String(user.id));
+        
+        // Verificar que el profesor sea Jefe de Carrera
+        const profesor = await prisma.profesor.findUnique({
+            where: { id: profesorId },
+            select: { rol: true }
+        });
+
+        if (profesor?.rol?.toLowerCase() !== 'jefe de carrera') {
+            return res.status(403).json({ error: 'Acceso restringido a Jefes de Carrera' });
+        }
+
+        const limit = Number(req.query.limit) || 10;
+
+        // Obtener IDs de proyecciones favoritas
+        const proyeccionesFavoritas = await prisma.proyeccion.findMany({
+            where: { favorita: true },
+            select: { id_proyeccion: true }
+        });
+        const proyeccionesFavoritasIds = proyeccionesFavoritas.map(p => p.id_proyeccion);
+
+        // Obtener top cursos de todas las asignaturas
+        const grouped = await prisma.itemProyeccion.groupBy({
+            by: ['id_asignatura_fk'],
+            where: { 
+                id_proyeccion_fk: { in: proyeccionesFavoritasIds },
+                semestre_proyectado: 1 
+            },
+            _count: { id_item: true },
+            orderBy: { _count: { id_item: 'desc' } },
+            take: limit
+        });
+
+        const topCourses = await Promise.all(grouped.map(async g => {
+            const asign = await prisma.asignatura.findUnique({ where: { id_asignatura: g.id_asignatura_fk } });
+            return {
+                codigo: asign?.codigo_asignatura || 'UNKNOWN',
+                nombre: asign?.nombre_asignatura || 'Asignatura desconocida',
+                count: g._count.id_item
+            };
+        }));
+
+        res.json({ topCourses });
+    } catch (error: any) {
+        console.error('Error GET /api/admin/global-top-courses:', error);
+        res.status(500).json({ error: 'Error obteniendo top cursos globales' });
     }
 });
 
@@ -1246,14 +1316,14 @@ app.get('/api/admin/my-assignatures', verificarToken, async (req, res) => {
     }
 });
 
-// GET /api/admin/projections - Listar proyecciones (opcionalmente filtrar por carrera y favoritas)
+// GET /api/admin/projections - Listar proyecciones favoritas (opcionalmente filtrar por carrera)
 app.get('/api/admin/projections', verificarToken, async (req, res) => {
     try {
         const carrera = typeof req.query.carrera === 'string' ? req.query.carrera : undefined;
-        const favoritas = String(req.query.favoritas) === 'true';
 
-        const where: any = {};
-        if (favoritas) where.favorita = true;
+        const where: any = {
+            favorita: true  // Solo devolver proyecciones favoritas
+        };
 
         if (carrera) {
             where.Estudiante = {

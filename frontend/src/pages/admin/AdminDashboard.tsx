@@ -108,7 +108,7 @@ const AdminDashboard = () => {
             resultsMap[key] = { codigo, nombre, semestre, estudiantes: [], totalEstudiantes: 0 };
           }
 
-          resultsMap[key].estudiantes.push({ rut: estudiante?.rut, nombre: estudiante?.nombre_completo, proyeccion: nombreProyeccion });
+          resultsMap[key].estudiantes.push({ rut: estudiante?.rut, nombre: estudiante?.nombre, correo: estudiante?.email, proyeccion: nombreProyeccion });
           resultsMap[key].totalEstudiantes = resultsMap[key].estudiantes.length;
         }
       }
@@ -200,11 +200,42 @@ const AdminDashboard = () => {
               </div>
             </div>
             
-            {assignedAsignaturas && assignedAsignaturas.length > 0 && (
+            {globalTopCourses && globalTopCourses.length > 0 && (
               <div className={styles.sectionCard}>
                 <div className={styles.sectionHeader}>
                   <HiStar className={styles.sectionIcon} />
-                  <h3>Mis Asignaturas</h3>
+                  <h3>Top Cursos Más Populares (Semestre 1)</h3>
+                </div>
+                <div className={styles.topCoursesList}>
+                  {globalTopCourses.slice(0, 5).map((course, idx) => (
+                    <div key={course.codigo} className={styles.topCourseItem}>
+                      <div className={styles.courseRank}>#{idx + 1}</div>
+                      <div className={styles.courseInfo}>
+                        <div className={styles.courseTitle}>
+                          <strong>{course.codigo}</strong>
+                          <span className={styles.courseName}>{course.nombre}</span>
+                        </div>
+                        <div className={styles.courseBar}>
+                          <div 
+                            className={styles.courseBarFill} 
+                            style={{ 
+                              width: `${(course.count / (globalTopCourses[0]?.count || 1)) * 100}%` 
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div className={styles.courseCount}>{course.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {assignedAsignaturas && assignedAsignaturas.length > 0 && (
+              <div className={styles.sectionCard}>
+                <div className={styles.sectionHeader}>
+                  <HiAcademicCap className={styles.sectionIcon} />
+                  <h3>Mis Asignaturas Asignadas</h3>
                 </div>
                 <div className={styles.topCoursesList}>
                   {assignedAsignaturas.map((course, idx) => (
@@ -303,7 +334,7 @@ const AdminDashboard = () => {
                           {result.estudiantes.map((est: any, i: number) => (
                             <div key={i} className={styles.studentItem}>
                               <span className={styles.studentRut}>{est.rut}</span>
-                              <span className={styles.studentName}>{est.nombre}</span>
+                              <span className={styles.studentName}>{est.correo}</span>
                               <span className={styles.studentProjection}>{est.proyeccion}</span>
                             </div>
                           ))}
@@ -328,7 +359,7 @@ const AdminDashboard = () => {
           <div className={styles.cursosSection}>
             <div className={styles.sectionHeader}>
               <HiAcademicCap className={styles.sectionIcon} />
-              <h3>Análisis de Cursos</h3>
+              <h3>Mis Cursos - Análisis de Demanda (Semestre 1)</h3>
             </div>
             {stats?.topCourses && stats.topCourses.length > 0 ? (
               <div className={styles.coursesTable}>
@@ -336,8 +367,8 @@ const AdminDashboard = () => {
                   <span className={styles.colRank}>Rank</span>
                   <span className={styles.colCode}>Código</span>
                   <span className={styles.colName}>Nombre</span>
-                  <span className={styles.colCount}>Proyecciones</span>
-                  <span className={styles.colPercent}>% del Total</span>
+                  <span className={styles.colCount}>Estudiantes</span>
+                  <span className={styles.colPercent}>Popularidad</span>
                 </div>
                 {stats.topCourses.map((course, idx) => (
                   <div key={course.codigo} className={styles.tableRow}>
@@ -353,10 +384,10 @@ const AdminDashboard = () => {
                       <div className={styles.percentBar}>
                         <div 
                           className={styles.percentFill}
-                          style={{ width: `${(course.count / stats.totalProyecciones) * 100}%` }}
+                          style={{ width: `${(course.count / (stats.topCourses[0]?.count || 1)) * 100}%` }}
                         />
                         <span className={styles.percentText}>
-                          {((course.count / stats.totalProyecciones) * 100).toFixed(1)}%
+                          {course.count} est.
                         </span>
                       </div>
                     </span>
@@ -369,50 +400,46 @@ const AdminDashboard = () => {
                 <p>No hay datos de cursos disponibles</p>
               </div>
             )}
-            {/* Global top courses for Jefes de Carrera (rendered below, same style) */}
             
-            {profesor?.rol && profesor.rol.toLowerCase() === 'jefe de carrera' && (
-              <div style={{ marginTop: 24 }}>
-                <h3> Vista general</h3>
-                {globalTopCourses && globalTopCourses.length > 0 ? (
-                  <div className={styles.coursesTable}>
-                    <div className={styles.tableHeader}>
-                      <span className={styles.colRank}>Rank</span>
-                      <span className={styles.colCode}>Código</span>
-                      <span className={styles.colName}>Nombre</span>
-                      <span className={styles.colCount}>Proyecciones</span>
-                      <span className={styles.colPercent}>% del Total</span>
+            {/* Vista general de todos los cursos para Jefes de Carrera */}
+            {profesor?.rol && profesor.rol.toLowerCase() === 'jefe de carrera' && globalTopCourses && globalTopCourses.length > 0 && (
+              <div style={{ marginTop: 48 }}>
+                <div className={styles.sectionHeader}>
+                  <HiChartBar className={styles.sectionIcon} />
+                  <h3>Vista General - Todos los Cursos (Semestre 1)</h3>
+                </div>
+                <div className={styles.coursesTable}>
+                  <div className={styles.tableHeader}>
+                    <span className={styles.colRank}>Rank</span>
+                    <span className={styles.colCode}>Código</span>
+                    <span className={styles.colName}>Nombre</span>
+                    <span className={styles.colCount}>Estudiantes</span>
+                    <span className={styles.colPercent}>Popularidad</span>
+                  </div>
+                  {globalTopCourses.map((course, idx) => (
+                    <div key={`global-${course.codigo}`} className={styles.tableRow}>
+                      <span className={styles.colRank}>
+                        <span className={styles.rankBadge}>#{idx + 1}</span>
+                      </span>
+                      <span className={styles.colCode}>{course.codigo}</span>
+                      <span className={styles.colName}>{course.nombre}</span>
+                      <span className={styles.colCount}>
+                        <strong>{course.count}</strong>
+                      </span>
+                      <span className={styles.colPercent}>
+                        <div className={styles.percentBar}>
+                          <div
+                            className={styles.percentFill}
+                            style={{ width: `${(course.count / (globalTopCourses[0]?.count || 1)) * 100}%` }}
+                          />
+                          <span className={styles.percentText}>
+                            {course.count} est.
+                          </span>
+                        </div>
+                      </span>
                     </div>
-                    {globalTopCourses.map((course, idx) => (
-                      <div key={`global-${course.codigo}`} className={styles.tableRow}>
-                        <span className={styles.colRank}>
-                          <span className={styles.rankBadge}>#{idx + 1}</span>
-                        </span>
-                        <span className={styles.colCode}>{course.codigo}</span>
-                        <span className={styles.colName}>{course.nombre}</span>
-                        <span className={styles.colCount}>
-                          <strong>{course.count}</strong>
-                        </span>
-                        <span className={styles.colPercent}>
-                          <div className={styles.percentBar}>
-                            <div
-                              className={styles.percentFill}
-                              style={{ width: `${(course.count / (stats?.totalProyecciones || 1)) * 100}%` }}
-                            />
-                            <span className={styles.percentText}>
-                              {((course.count / (stats?.totalProyecciones || 1)) * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={styles.emptyState} style={{ marginTop: 12 }}>
-                    <HiChartBar className={styles.emptyIcon} />
-                    <p>No hay datos globales de cursos disponibles</p>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
           </div>

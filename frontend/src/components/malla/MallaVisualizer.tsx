@@ -117,13 +117,6 @@ const MallaVisualizer: React.FC<MallaVisualizerProps> = ({
                         {ramo.asignatura}
                         </p>
 
-                        {/* Mostrar prerrequisitos si existen */}
-                        {ramo.prereq && ramo.prereq !== '-' && (
-                        <div className={styles.prereqContainer}>
-                            <span className={styles.prereqLabel}>Prereq:</span>
-                            <span className={styles.prereqValue}>{ramo.prereq}</span>
-                        </div>
-                        )}
 
                         {/* Badge de estado */}
                         <div className={styles.statusBadge}>
