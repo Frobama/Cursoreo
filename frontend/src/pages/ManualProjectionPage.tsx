@@ -495,6 +495,15 @@ const ManualProjectionPage = () => {
           {isSaving ? 'Guardando...' : '💾 Guardar Proyección'}
         </button>
       </div>
+
+      {isSaving && (
+        <div className={styles.savingOverlay}>
+          <div className={styles.savingModal}>
+            <Loading />
+            <p className={styles.savingText}>Guardando proyección...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
