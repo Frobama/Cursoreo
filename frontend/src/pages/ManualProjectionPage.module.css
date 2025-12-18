@@ -13,41 +13,42 @@
 
 .header h1 {
   font-size: 2rem;
-  color: #1a1a1a;
+  color: var(--text);
   margin: 0;
 }
 
 .backBtn {
   padding: 0.5rem 1rem;
-  background: #6c757d;
+  background: var(--text-secondary);
   color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.95rem;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
 }
 
 .backBtn:hover {
-  background: #5a6268;
+  background: var(--text);
 }
 
 .errorBanner {
-  background: #fff3cd;
-  border: 1px solid #ffc107;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
   padding: 1rem;
   border-radius: 6px;
   margin-bottom: 1.5rem;
-  color: #856404;
+  color: var(--text);
 }
 
 .error, .noCarrera {
   text-align: center;
   padding: 3rem;
-  background: #fee;
-  border: 1px solid #fcc;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
   border-radius: 8px;
   margin: 2rem;
+  color: var(--text);
 }
 
 .formSection {
@@ -58,22 +59,30 @@
   display: block;
   margin-bottom: 0.5rem;
   font-weight: 600;
-  color: #495057;
+  color: var(--text);
 }
 
 .input {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #ced4da;
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 1rem;
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
+  background: var(--card-bg);
+  color: var(--text);
 }
 
 .input:focus {
   outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 255, 204, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .input:focus {
+    box-shadow: 0 0 0 3px rgba(0, 255, 204, 0.2);
+  }
 }
 
 .planBuilder {
@@ -84,19 +93,21 @@
 }
 
 .sidebar {
-  background: #f8f9fa;
+  background: var(--hover-bg);
   border-radius: 8px;
   padding: 1.5rem;
   max-height: 70vh;
   overflow-y: auto;
   position: sticky;
   top: 2rem;
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
 }
 
 .sidebar h3 {
   margin-top: 0;
   margin-bottom: 1rem;
-  color: #212529;
+  color: var(--text);
   font-size: 1.25rem;
 }
 
@@ -107,17 +118,17 @@
 }
 
 .ramoItem {
-  background: white;
+  background: var(--card-bg);
   padding: 0.75rem;
   border-radius: 6px;
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--border);
   cursor: grab;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .ramoItem:hover {
-  border-color: #007bff;
-  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .ramoInfo {
@@ -127,19 +138,25 @@
 }
 
 .ramoInfo strong {
-  color: #495057;
+  color: var(--text);
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
 }
 
 .ramoInfo span {
   font-size: 0.875rem;
-  color: #6c757d;
+  color: var(--text-secondary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ramoInfo span {
+    color: #e4e7f0;
+  }
 }
 
 .creditos {
   font-weight: 600 !important;
-  color: #28a745 !important;
+  color: #a78bfa !important;
 }
 
 .planArea {
@@ -149,15 +166,15 @@
 }
 
 .semesterCard {
-  background: white;
-  border: 2px solid #dee2e6;
+  background: var(--card-bg);
+  border: 2px solid var(--border);
   border-radius: 8px;
   padding: 1.5rem;
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .semesterCard:hover {
-  border-color: #007bff;
+  border-color: var(--primary);
 }
 
 .semesterHeader {
@@ -166,12 +183,12 @@
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 2px solid #e9ecef;
+  border-bottom: 2px solid var(--border);
 }
 
 .semesterHeader h3 {
   margin: 0;
-  color: #212529;
+  color: var(--text);
 }
 
 .semesterActions {
@@ -183,10 +200,11 @@
 .totalCredits {
   font-size: 0.95rem;
   font-weight: 600;
-  color: #28a745;
-  background: #f0fff4;
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.1);
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
+  border: 1px solid rgba(167, 139, 250, 0.3);
 }
 
 .deleteBtn {
@@ -216,15 +234,16 @@
 
 .courseCard {
   position: relative;
-  background: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 1rem;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .courseCard:hover {
-  background: #e9ecef;
+  background: var(--card-bg);
+  border-color: var(--primary);
 }
 
 .removeCourseBtn {
@@ -252,7 +271,7 @@
 
 .courseCodigo {
   font-weight: 700;
-  color: #495057;
+  color: var(--text);
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
   margin-bottom: 0.25rem;
@@ -260,57 +279,70 @@
 
 .courseNombre {
   font-size: 0.875rem;
-  color: #212529;
+  color: var(--text);
   margin-bottom: 0.5rem;
   min-height: 2.5em;
   line-height: 1.25;
 }
 
+@media (prefers-color-scheme: dark) {
+  .courseCodigo,
+  .courseNombre {
+    color: #e4e7f0;
+  }
+}
+
 .courseCreditos {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #28a745;
+  color: #a78bfa;
 }
 
 .addCourseSelect {
   width: 100%;
   padding: 1rem;
-  border: 2px dashed #007bff;
+  border: 2px dashed var(--primary);
   border-radius: 6px;
-  background: #f0f8ff;
-  color: #007bff;
+  background: var(--hover-bg);
+  color: var(--primary);
   font-size: 0.95rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .addCourseSelect:hover {
-  background: #e0f0ff;
-  border-color: #0056b3;
+  background: var(--card-bg);
+  border-color: var(--primary-dark);
 }
 
 .addCourseSelect:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 255, 204, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .addCourseSelect:focus {
+    box-shadow: 0 0 0 3px rgba(0, 255, 204, 0.2);
+  }
 }
 
 .addSemesterBtn {
   width: 100%;
   padding: 1rem;
-  background: white;
-  border: 2px dashed #6c757d;
+  background: var(--card-bg);
+  border: 2px dashed var(--text-secondary);
   border-radius: 8px;
-  color: #6c757d;
+  color: var(--text-secondary);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .addSemesterBtn:hover {
-  border-color: #495057;
-  background: #f8f9fa;
-  color: #495057;
+  border-color: var(--text);
+  background: var(--hover-bg);
+  color: var(--text);
 }
 
 .actions {
@@ -319,30 +351,38 @@
   gap: 1rem;
   margin-top: 2rem;
   padding-top: 2rem;
-  border-top: 2px solid #dee2e6;
+  border-top: 2px solid var(--border);
 }
 
 .saveBtn {
   padding: 1rem 2rem;
-  background: #28a745;
+  background: #a78bfa;
   color: white;
   border: none;
   border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .saveBtn:hover:not(:disabled) {
-  background: #218838;
+  background: #9333ea;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  box-shadow: 0 4px 12px rgba(167, 139, 250, 0.4);
 }
 
 .saveBtn:disabled {
-  background: #6c757d;
+  background: var(--text-secondary);
   cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .saveBtn:hover:not(:disabled) {
+    box-shadow: 0 4px 20px rgba(167, 139, 250, 0.6),
+                0 0 30px rgba(167, 139, 250, 0.3);
+  }
 }
 
 @media (max-width: 1024px) {
@@ -388,16 +428,27 @@
 }
 
 .overcredit {
-  color: #dc3545;
+  color: #ef4444;
 }
 
 .overcreditBadge {
-  background: #dc3545;
+  background: #ef4444;
   color: white;
   padding: 0.125rem 0.5rem;
   border-radius: 12px;
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+@media (prefers-color-scheme: dark) {
+  .overcredit {
+    color: #f87171;
+  }
+  
+  .overcreditBadge {
+    background: #dc2626;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+  }
 }
 
 .coursesGrid {
@@ -408,12 +459,12 @@
 
 .courseButton {
   position: relative;
-  background: white;
-  border: 2px solid #dee2e6;
+  background: var(--card-bg);
+  border: 2px solid var(--border);
   border-radius: 8px;
   padding: 1rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   text-align: left;
   min-height: 120px;
   display: flex;
@@ -422,34 +473,49 @@
 }
 
 .courseButton:hover:not(:disabled) {
-  border-color: #007bff;
+  border-color: var(--primary);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 .courseButton.selected {
-  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-  border-color: #28a745;
+  background: linear-gradient(135deg, #a78bfa 0%, #c084fc 100%);
+  border-color: #a78bfa;
   color: white;
 }
 
 .courseButton.disabled {
-  background: #f8f9fa;
-  border-color: #e9ecef;
-  color: #adb5bd;
+  background: var(--hover-bg);
+  border-color: var(--border);
+  color: var(--text-secondary);
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .courseButton.duplicate {
-  background: #fff3cd;
-  border-color: #ffc107;
+  background: rgba(251, 146, 60, 0.1);
+  border-color: #fb923c;
   cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+  .courseButton:hover:not(:disabled) {
+    box-shadow: 0 4px 20px rgba(0, 255, 204, 0.2),
+                0 0 30px rgba(0, 255, 204, 0.1);
+  }
+  
+  .courseButton.selected {
+    box-shadow: 0 0 20px rgba(167, 139, 250, 0.4);
+  }
+  
+  .courseButton.duplicate {
+    box-shadow: 0 0 10px rgba(251, 146, 60, 0.2);
+  }
 }
 
 .warning {
   display: block;
-  color: #856404;
+  color: #fb923c;
   font-size: 0.7rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
@@ -459,18 +525,31 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
+@media (prefers-color-scheme: dark) {
+  .warning {
+    color: #fdba74;
+  }
+}
+
 .courseName {
   font-size: 0.9rem;
   font-weight: 500;
   line-height: 1.3;
   margin-bottom: 0.5rem;
   min-height: 2.6em;
+  color: var(--text);
+}
+
+@media (prefers-color-scheme: dark) {
+  .courseName {
+    color: #e4e7f0;
+  }
 }
 
 .courseCredits {
   display: block;
   font-weight: 600;
-  color: #28a745;
+  color: #a78bfa;
   margin-bottom: 0.25rem;
 }
 
@@ -481,7 +560,7 @@
 .courseCode {
   display: block;
   font-family: 'Courier New', monospace;
-  color: #6c757d;
+  color: var(--text-secondary);
   font-size: 0.75rem;
 }
 
@@ -507,7 +586,7 @@
   font-size: 1.1rem;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
   margin-bottom: 1rem;
 }
@@ -518,9 +597,23 @@
 }
 
 .autoBtn:disabled {
-  background: #e9ecef;
-  color: #6c757d;
+  background: var(--hover-bg);
+  color: var(--text-secondary);
   cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (prefers-color-scheme: dark) {
+  .autoBtn {
+    background: var(--card-bg);
+    color: var(--primary);
+    border: 2px solid var(--primary);
+  }
+  
+  .autoBtn:hover:not(:disabled) {
+    box-shadow: 0 6px 30px rgba(0, 255, 204, 0.4),
+                0 0 40px rgba(0, 255, 204, 0.2);
+  }
 }
 
 .autoInfo {
@@ -535,14 +628,14 @@
 .loadMoreBtn {
   width: 100%;
   padding: 1.5rem;
-  background: white;
-  border: 2px dashed #007bff;
+  background: var(--card-bg);
+  border: 2px dashed var(--primary);
   border-radius: 12px;
-  color: #007bff;
+  color: var(--primary);
   font-size: 1.1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -550,11 +643,18 @@
 }
 
 .loadMoreBtn:hover {
-  background: #f0f8ff;
-  border-color: #0056b3;
-  color: #0056b3;
+  background: var(--hover-bg);
+  border-color: var(--primary-dark);
+  color: var(--primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+  box-shadow: var(--shadow-md);
+}
+
+@media (prefers-color-scheme: dark) {
+  .loadMoreBtn:hover {
+    box-shadow: 0 4px 20px rgba(0, 255, 204, 0.3),
+                0 0 30px rgba(0, 255, 204, 0.15);
+  }
 }
 
 /* ...existing code... */

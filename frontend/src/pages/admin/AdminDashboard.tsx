@@ -10,7 +10,8 @@ import {
   HiAcademicCap,
   HiLogout,
   HiTrendingUp,
-  HiChartBar
+  HiChartBar,
+  HiLightBulb
 } from 'react-icons/hi';
 import styles from './AdminDashboard.module.css';
 
@@ -299,7 +300,7 @@ const AdminDashboard = () => {
               </div>
               
               <p className={styles.searchHint}>
-                💡 Puede buscar por código de curso (ej: INF-239), nombre del curso, 
+                <HiLightBulb style={{ display: 'inline', marginRight: '6px' }} /> Puede buscar por código de curso (ej: INF-239), nombre del curso, 
                 semestre específico, o combinar ambos criterios
               </p>
             </div>

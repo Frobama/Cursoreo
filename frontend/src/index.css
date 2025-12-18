@@ -12,9 +12,17 @@
   --text: #2c3e50;
   --text-secondary: #7f8c8d;
   --primary: #1976d2;
+  --primary-dark: #1565c0;
   --secondary: #dc004e;
   --border: #e0e0e0;
   --hover: #f8f9fa;
+  --hover-bg: #f8f9fa;
+  
+  /* Estados y alertas */
+  --error-bg: #fee;
+  --error-border: #fcc;
+  --warning-bg: #fff3cd;
+  --warning-border: #ffc107;
   
   /* Sombras - Modo Claro */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -33,9 +41,17 @@
     --text: #e4e7f0;
     --text-secondary: #8b92b0;
     --primary: #00ffcc;
+    --primary-dark: #00d9b3;
     --secondary: #ff6b9d;
     --border: #2a3150;
     --hover: #1f2847;
+    --hover-bg: #1f2847;
+    
+    /* Estados y alertas - Modo Oscuro */
+    --error-bg: #3d1a1a;
+    --error-border: #8b2e2e;
+    --warning-bg: #3d3520;
+    --warning-border: #d4a017;
     
     /* Sombras - Modo Oscuro con glow neón */
     --shadow-sm: 0 2px 8px rgba(0, 255, 204, 0.1);

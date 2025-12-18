@@ -9,12 +9,28 @@
   position: sticky;
   top: 0;
   z-index: 100;
+  transition: all 0.3s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  .navbar {
+    background: linear-gradient(135deg, #1a1f3a 0%, #2d1b4e 100%);
+    box-shadow: 0 2px 8px rgba(0, 255, 204, 0.2);
+    border-bottom: 1px solid rgba(0, 255, 204, 0.1);
+  }
 }
 
 .logo h2 {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
+}
+
+@media (prefers-color-scheme: dark) {
+  .logo h2 {
+    color: var(--primary);
+    text-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+  }
 }
 
 .center {
@@ -34,6 +50,12 @@
   font-weight: 500;
 }
 
+@media (prefers-color-scheme: dark) {
+  .userName {
+    color: var(--text);
+  }
+}
+
 .logoutBtn {
   padding: 0.5rem 1rem;
   background: rgba(255, 255, 255, 0.2);
@@ -42,12 +64,25 @@
   border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .logoutBtn:hover {
   background: rgba(255, 255, 255, 0.3);
   border-color: white;
+}
+
+@media (prefers-color-scheme: dark) {
+  .logoutBtn {
+    background: rgba(0, 255, 204, 0.1);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+  
+  .logoutBtn:hover {
+    background: rgba(0, 255, 204, 0.2);
+    box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+  }
 }
 
 @media (max-width: 768px) {

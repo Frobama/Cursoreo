@@ -72,3 +72,22 @@
     font-size: 0.75rem;
   }
 }
+
+@media (prefers-color-scheme: dark) {
+  .sidebar {
+    background: #1a252f;
+  }
+
+  .navItem {
+    color: #bdc3c7;
+  }
+
+  .navItem:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .navItem.active {
+    background: rgba(52, 152, 219, 0.3);
+    color: white;
+  }
+}

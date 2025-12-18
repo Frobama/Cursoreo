@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { HiChartBar, HiPlus } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import { useProjections } from '../hooks/useProjection';
 import { useApp } from '../context/AppContext';
@@ -97,13 +98,13 @@ const ProyeccionPage = () => {
             onClick={() => navigate('/proyeccion/comparar')}
             className={styles.compareBtn}
           >
-            📊 Comparar Proyecciones
+            <HiChartBar /> Comparar Proyecciones
           </button>
           <button
             onClick={() => navigate('/proyeccion/manual')}
             className={styles.newBtn}
           >
-            + Nueva Proyección
+            <HiPlus /> Nueva Proyección
           </button>
         </div>
       </div>

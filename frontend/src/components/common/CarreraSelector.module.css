@@ -10,6 +10,12 @@
   white-space: nowrap;
 }
 
+@media (prefers-color-scheme: dark) {
+  .selector label {
+    color: #e0e0e0;
+  }
+}
+
 .select {
   padding: 0.5rem 1rem;
   border: 1px solid #ced4da;

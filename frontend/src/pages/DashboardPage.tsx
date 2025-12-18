@@ -1,5 +1,6 @@
 // src/pages/DashboardPage.tsx
 import { useNavigate } from 'react-router-dom';
+import { HiChartBar, HiPencilAlt, HiCheckCircle, HiBookOpen, HiAcademicCap, HiClipboardList } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import { useApp } from '../context/AppContext';
 import { useMalla } from '../hooks/useMalla';
@@ -97,38 +98,38 @@ const DashboardPage = () => {
                     title="Ramos Aprobados"
                     value={totalAprobados}
                     subtitle={`${creditosAprobados} créditos`}
-                    icon="✓"
+                    icon={<HiCheckCircle />}
                     color="green"
                 />
                 <StatsCard
                     title="Ramos Inscritos"
                     value={totalInscritos}
                     subtitle={`${ramosInscritos.reduce((sum, r) => sum + (r.creditos || 0), 0)} créditos`}
-                    icon="📚"
+                    icon={<HiBookOpen />}
                     color="blue"
                 />
                 <StatsCard
                     title="Avance Curricular"
                     value={`${porcentajeAvance}%`}
                     subtitle={`${creditosAprobados} / ${totalCreditos} créditos`}
-                    icon="🎓"
+                    icon={<HiAcademicCap />}
                     color="purple"
                 />
                 <StatsCard
                     title="Total Ramos"
                     value={totalRamos}
                     subtitle={`${totalCreditos} créditos totales`}
-                    icon="📋"
+                    icon={<HiClipboardList />}
                     color="orange"
                 />
             </div>
 
             <div className={styles.actions}>
                 <button onClick={handleViewMalla} className={styles.btnPrimary}>
-                    📊 Ver Malla Curricular
+                    <HiChartBar style={{ marginRight: '6px' }} /> Ver Malla Curricular
                 </button>
                 <button onClick={handleCreateProjection} className={styles.btnSecondary}>
-                    ✏️ Crear Proyección Manual
+                    <HiPencilAlt style={{ marginRight: '6px' }} /> Crear Proyección Manual
                 </button>
             </div>
 

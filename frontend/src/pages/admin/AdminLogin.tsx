@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '../../context/AdminContext';
 import { MdEmail, MdLock, MdAdminPanelSettings } from 'react-icons/md';
-import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 import styles from './AdminLogin.module.css';
 
 const AdminLogin = () => {

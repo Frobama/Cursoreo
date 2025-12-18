@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { HiLightBulb, HiCheckCircle } from 'react-icons/hi';
 import { useAuth } from '../hooks/useAuth';
 import { useApp } from '../context/AppContext';
 import { useMalla } from '../hooks/useMalla';
@@ -329,7 +330,7 @@ const ManualProjectionPage = () => {
       const response = await projectionService.saveProjection(payload);
 
       if (response.ok) {
-        alert('✅ Proyección guardada exitosamente');
+        alert('Proyección guardada exitosamente');
         navigate('/proyeccion');
       } else {
         setError(response.error || 'Error al guardar la proyección');
@@ -364,9 +365,6 @@ const ManualProjectionPage = () => {
     <div className={styles.projectionPage}>
       <div className={styles.header}>
         <h1>Crear Proyección Manual</h1>
-        <button onClick={() => navigate('/dashboard')} className={styles.backBtn}>
-          ← Volver
-        </button>
       </div>
 
       {error && (
@@ -402,7 +400,7 @@ const ManualProjectionPage = () => {
       </div> 
 
       <div className={styles.info}>
-        <p>💡 Solo se muestran los ramos que puedes tomar en cada semestre según tus prerrequisitos.</p>
+        <p><HiLightBulb style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} /> Solo se muestran los ramos que puedes tomar en cada semestre según tus prerrequisitos.</p>
       </div>
 
       <div className={styles.semestersContainer}>

@@ -118,13 +118,7 @@ const MallaVisualizer: React.FC<MallaVisualizerProps> = ({
                         </p>
 
 
-                        {/* Badge de estado */}
-                        <div className={styles.statusBadge}>
-                        {status === 'aprobado' && '✓'}
-                        {status === 'inscrito' && '📚'}
-                        {status === 'reprobado' && '✗'}
-                        {status === 'pendiente' && '⏳'}
-                        </div>
+                        
 
                         {/* Información adicional si está inscrito */}
                         {ramo.nrc && (

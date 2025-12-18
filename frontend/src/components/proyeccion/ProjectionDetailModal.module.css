@@ -18,7 +18,7 @@
 }
 
 .modal {
-  background: white;
+  background: var(--card-bg);
   border-radius: 12px;
   max-width: 900px;
   width: 90%;
@@ -26,7 +26,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
   animation: slideUp 0.3s;
 }
 
@@ -40,25 +40,25 @@
   justify-content: space-between;
   align-items: flex-start;
   padding: 24px;
-  border-bottom: 2px solid #e0e0e0;
+  border-bottom: 2px solid var(--border);
 }
 
 .header h2 {
   margin: 0;
-  color: #1976d2;
+  color: var(--primary);
 }
 
 .date {
   margin: 4px 0 0 0;
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .closeBtn {
   background: none;
   border: none;
   font-size: 28px;
-  color: #666;
+  color: var(--text-secondary);
   cursor: pointer;
   width: 32px;
   height: 32px;
@@ -66,39 +66,43 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
 }
 
 .closeBtn:hover {
-  background: #f0f0f0;
-  color: #333;
+  background: var(--hover-bg);
+  color: var(--text);
 }
 
 .actions {
   padding: 16px 24px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border);
 }
 
 .favoriteBtn {
   padding: 10px 20px;
-  border: 2px solid #1976d2;
-  background: white;
-  color: #1976d2;
+  border: 2px solid var(--primary);
+  background: var(--card-bg);
+  color: var(--primary);
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .favoriteBtn:hover {
-  background: #1976d2;
-  color: white;
+  background: var(--primary);
+  color: var(--card-bg);
 }
 
 .isFavorite {
   background: #ffc107;
   border-color: #ffc107;
-  color: #333;
+  color: #1a1a1a;
 }
 
 .isFavorite:hover {
@@ -114,7 +118,7 @@
 
 .content h3 {
   margin: 0 0 16px 0;
-  color: #333;
+  color: var(--text);
 }
 
 .semesters {
@@ -126,28 +130,29 @@
 
 .semester {
   min-width: 280px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
+  background: var(--bg);
 }
 
 .semesterHeader {
-  background: #f5f5f5;
+  background: var(--hover-bg);
   padding: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid #1976d2;
+  border-bottom: 2px solid var(--primary);
 }
 
 .semesterHeader h4 {
   margin: 0;
-  color: #1976d2;
+  color: var(--primary);
 }
 
 .credits {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: bold;
 }
 
@@ -159,41 +164,41 @@
 }
 
 .courseCard {
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 10px;
-  transition: transform 0.2s;
+  transition: all 0.2s ease;
 }
 
 .courseCard:hover {
   transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .courseCode {
   font-weight: bold;
-  color: #1976d2;
+  color: var(--primary);
   margin-bottom: 4px;
 }
 
 .courseName {
   font-size: 13px;
-  color: #333;
+  color: var(--text);
   margin-bottom: 4px;
 }
 
 .courseCredits {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .summary {
   display: flex;
   justify-content: space-around;
   padding: 20px 24px;
-  border-top: 2px solid #e0e0e0;
-  background: #f9f9f9;
+  border-top: 2px solid var(--border);
+  background: var(--hover-bg);
 }
 
 .stat {
@@ -203,30 +208,15 @@
 .stat strong {
   display: block;
   font-size: 24px;
-  color: #1976d2;
+  color: var(--primary);
   margin-bottom: 4px;
 }
 
 .stat span {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-
-.favoriteBtn {
-  padding: 10px 20px;
-  border: 2px solid #1976d2;
-  background: white;
-  color: #1976d2;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
 }
 
 .favoriteBtn:disabled {
@@ -235,16 +225,16 @@
 }
 
 .loading {
-  background: #e3f2fd !important;
-  border-color: #1976d2 !important;
-  color: #1976d2 !important;
+  background: var(--hover-bg) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
 }
 
 /* Spinner animado */
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid #1976d2;
+  border: 2px solid var(--primary);
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
@@ -252,4 +242,25 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@media (prefers-color-scheme: dark) {
+  .overlay {
+    background: rgba(0, 0, 0, 0.8);
+  }
+  
+  .courseCard:hover {
+    box-shadow: 0 2px 12px rgba(0, 255, 204, 0.2);
+  }
+  
+  .isFavorite {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: #1a1a1a;
+  }
+  
+  .isFavorite:hover {
+    background: #d97706;
+    border-color: #d97706;
+  }
 }

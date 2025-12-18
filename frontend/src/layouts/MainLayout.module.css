@@ -5,6 +5,11 @@
   background: #f8f9fa;
 }
 
+@media (prefers-color-scheme: dark) {
+  .layout {
+    background: rgb(0, 3, 41);
+  }
+}
 .container {
   display: flex;
   flex: 1;

@@ -10,9 +10,16 @@
 .nivelColumn {
   min-width: 280px;
   flex-shrink: 0;
-  background: #f8f9fa;
+  background: var(--hover-bg);
   border-radius: 8px;
   padding: 1rem;
+  transition: background 0.3s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  .nivelColumn {
+    border: 1px solid var(--border);
+  }
 }
 
 .nivelHeader {
@@ -21,21 +28,22 @@
   align-items: center;
   margin-bottom: 1rem;
   padding-bottom: 0.5rem;
-  border-bottom: 2px solid #dee2e6;
+  border-bottom: 2px solid var(--border);
 }
 
 .nivelTitle {
   margin: 0;
   font-size: 1.25rem;
-  color: #2c3e50;
+  color: var(--text);
 }
 
 .nivelCount {
   font-size: 0.875rem;
-  color: #6c757d;
-  background: #e9ecef;
+  color: var(--text-secondary);
+  background: var(--card-bg);
   padding: 0.25rem 0.5rem;
   border-radius: 12px;
+  border: 1px solid var(--border);
 }
 
 .ramosList {
@@ -46,12 +54,12 @@
 
 .ramoCard {
   position: relative;
-  background: white;
+  background: var(--card-bg);
   border-radius: 8px;
   padding: 1rem;
-  border: 2px solid #dee2e6;
+  border: 2px solid var(--border);
   transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .ramoCard.clickeable {
@@ -60,7 +68,7 @@
 
 .ramoCard.clickeable:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .ramoCard.clickeable:active {
@@ -73,9 +81,23 @@
   background: #f0fff4;
 }
 
+@media (prefers-color-scheme: dark) {
+  .statusAprobado {
+    border-color: #a78bfa;
+    background: rgba(167, 139, 250, 0.1);
+  }
+}
+
 .statusInscrito {
   border-color: #007bff;
   background: #f0f8ff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .statusInscrito {
+    border-color: var(--primary);
+    background: rgba(0, 255, 204, 0.1);
+  }
 }
 
 .statusReprobado {
@@ -83,9 +105,23 @@
   background: #fff5f5;
 }
 
+@media (prefers-color-scheme: dark) {
+  .statusReprobado {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+  }
+}
+
 .statusPendiente {
   border-color: #ffc107;
   background: #fffef0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .statusPendiente {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+  }
 }
 
 .ramoHeader {
@@ -98,24 +134,25 @@
 .ramoCodigo {
   font-weight: 700;
   font-size: 0.875rem;
-  color: #495057;
+  color: var(--text);
   font-family: 'Courier New', monospace;
 }
 
 .ramoCreditos {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #6c757d;
-  background: #e9ecef;
+  color: var(--text-secondary);
+  background: var(--hover-bg);
   padding: 0.125rem 0.5rem;
   border-radius: 12px;
+  border: 1px solid var(--border);
 }
 
 .ramoNombre {
   margin: 0.5rem 0;
   font-size: 0.875rem;
   line-height: 1.4;
-  color: #212529;
+  color: var(--text);
   min-height: 2.8em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -127,18 +164,18 @@
 .prereqContainer {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--border);
   font-size: 0.75rem;
 }
 
 .prereqLabel {
   font-weight: 600;
-  color: #6c757d;
+  color: var(--text-secondary);
   margin-right: 0.25rem;
 }
 
 .prereqValue {
-  color: #495057;
+  color: var(--text);
   font-family: 'Courier New', monospace;
 }
 
@@ -153,12 +190,12 @@
 .extraInfo {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid #e9ecef;
+  border-top: 1px solid var(--border);
 }
 
 .extraInfo small {
   font-size: 0.75rem;
-  color: #6c757d;
+  color: var(--text-secondary);
 }
 
 .emptyState {
@@ -167,7 +204,7 @@
   align-items: center;
   width: 100%;
   min-height: 400px;
-  color: #6c757d;
+  color: var(--text-secondary);
   font-size: 1.125rem;
 }
 
@@ -200,6 +237,12 @@
 
 /* Focus para accesibilidad */
 .ramoCard.clickeable:focus {
-  outline: 2px solid #007bff;
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .ramoCard.clickeable:focus {
+    box-shadow: 0 0 0 3px rgba(0, 255, 204, 0.3);
+  }
 }

@@ -4,34 +4,42 @@
   gap: 12px;
   margin-top: 16px;
   padding: 16px;
-  background: #f5f5f5;
+  background: var(--hover-bg);
   border-radius: 8px;
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
 }
 
 .statCard {
-  background: white;
-  border: 1px solid #ddd;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
   border-radius: 6px;
   padding: 12px;
   text-align: center;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: all 0.2s ease;
 }
 
 .statCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+}
+
+@media (prefers-color-scheme: dark) {
+  .statCard:hover {
+    box-shadow: 0 4px 12px rgba(0, 255, 204, 0.2);
+  }
 }
 
 .statValue {
   font-size: 24px;
   font-weight: bold;
-  color: #1976d2;
+  color: var(--primary);
   margin-bottom: 4px;
 }
 
 .statLabel {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -44,10 +52,30 @@
   color: #4caf50;
 }
 
+@media (prefers-color-scheme: dark) {
+  .balanced {
+    border-color: #a78bfa;
+  }
+  
+  .balanced .statValue {
+    color: #a78bfa;
+  }
+}
+
 .unbalanced {
   border-color: #ff9800;
 }
 
 .unbalanced .statValue {
   color: #ff9800;
+}
+
+@media (prefers-color-scheme: dark) {
+  .unbalanced {
+    border-color: #fb923c;
+  }
+  
+  .unbalanced .statValue {
+    color: #fb923c;
+  }
 }

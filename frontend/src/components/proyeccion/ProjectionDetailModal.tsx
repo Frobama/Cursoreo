@@ -1,4 +1,6 @@
 import React from 'react';
+import { HiStar } from 'react-icons/hi';
+import { HiOutlineStar } from 'react-icons/hi';
 import type { FavoriteProjection } from '../../types';
 import styles from './ProjectionDetailModal.module.css';
 
@@ -48,7 +50,11 @@ const ProjectionDetailModal: React.FC<Props> = ({
                             Guardando...
                         </>
                         ) : (
-                        isFavorite ? '⭐ Favorita' : '☆ Marcar como favorita'
+                        isFavorite ? (
+                            <><HiStar style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Favorita</>
+                        ) : (
+                            <><HiOutlineStar style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Marcar como favorita</>
+                        )
                         )}
                     </button>
                 </div>

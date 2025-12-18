@@ -1,5 +1,5 @@
 import {api} from './api';
-import type { Profesor, AdminStats, CourseProjection } from '../types/admin';
+import type { AdminStats, CourseProjection } from '../types/admin';
 
 export const adminService = {
   async login(email: string, password: string) {

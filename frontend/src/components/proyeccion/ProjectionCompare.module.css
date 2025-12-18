@@ -4,7 +4,7 @@
 
 .compareContainer h2 {
   margin-bottom: 24px;
-  color: #1976d2;
+  color: var(--primary);
 }
 
 .projectionsGrid {
@@ -16,40 +16,48 @@
 
 .projectionColumn {
   min-width: 300px;
-  border: 2px solid #ddd;
+  border: 2px solid var(--border);
   border-radius: 8px;
   padding: 16px;
-  background: white;
+  background: var(--card-bg);
+  transition: all 0.3s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  .projectionColumn {
+    box-shadow: 0 2px 8px rgba(0, 255, 204, 0.1);
+  }
 }
 
 .projectionHeader {
   padding-bottom: 12px;
   margin-bottom: 16px;
-  border-bottom: 2px solid #1976d2;
+  border-bottom: 2px solid var(--primary);
 }
 
 .projectionHeader h3 {
   margin: 0 0 4px 0;
-  color: #1976d2;
+  color: var(--primary);
 }
 
 .date {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .semesterBlock {
   margin-bottom: 16px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
 }
 
 .semesterHeader {
-  background: #f5f5f5;
+  background: var(--hover-bg);
   padding: 8px 12px;
   font-weight: bold;
-  color: #333;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
 }
 
 .courses {
@@ -57,43 +65,44 @@
 }
 
 .courseCard {
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
+  background: var(--hover-bg);
+  border: 1px solid var(--border);
   border-radius: 4px;
   padding: 8px;
   margin-bottom: 6px;
+  transition: all 0.2s ease;
 }
 
 .courseCode {
   font-weight: bold;
-  color: #1976d2;
+  color: var(--primary);
   font-size: 13px;
 }
 
 .courseName {
   font-size: 12px;
-  color: #333;
+  color: var(--text);
   margin: 4px 0;
 }
 
 .courseCredits {
   font-size: 11px;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .semesterTotal {
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #ddd;
+  border-top: 1px solid var(--border);
   font-size: 12px;
   font-weight: bold;
-  color: #1976d2;
+  color: var(--primary);
 }
 
 .emptySemester {
   padding: 20px;
   text-align: center;
-  color: #999;
+  color: var(--text-secondary);
   font-style: italic;
 }
 
@@ -102,7 +111,21 @@
   background: #fff3e0;
 }
 
+@media (prefers-color-scheme: dark) {
+  .courseCard.unique {
+    border-color: #fb923c;
+    background: rgba(251, 146, 60, 0.15);
+  }
+}
+
 .courseCard.different-semester {
   border: 2px solid #f44336;
   background: #ffebee;
+}
+
+@media (prefers-color-scheme: dark) {
+  .courseCard.different-semester {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+  }
 }

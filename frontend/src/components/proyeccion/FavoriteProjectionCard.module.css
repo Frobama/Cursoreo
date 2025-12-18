@@ -1,9 +1,10 @@
 .favoriteCard {
-  border: 2px solid #1976d2;
-  border-radius: 8px;
+  border: 2px solid var(--primary);
+  border-radius: 12px;
   padding: 20px;
   margin-bottom: 24px;
-  background: #f5faff;
+  background: var(--card-bg);
+  transition: all 0.3s ease;
 }
 
 .header {
@@ -11,31 +12,58 @@
 }
 
 .header h2 {
-  color: #1976d2;
+  color: var(--primary);
   margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.headerWithIcon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.headerWithIcon svg {
+  color: #ffc107;
+  font-size: 24px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .header h2 {
+    text-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+  }
+  
+  .headerWithIcon svg {
+    color: #f59e0b;
+  }
 }
 
 .header h3 {
   margin: 0 0 8px 0;
+  color: var(--text);
+  font-weight: 600;
 }
 
 .date {
   font-size: 14px;
-  color: #555;
+  color: var(--text-secondary);
 }
 
 .semesters {
   display: flex;
   gap: 16px;
   overflow-x: auto;
+  padding-bottom: 8px;
 }
 
 .semester {
   min-width: 250px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
-  background: white;
+  background: var(--bg);
 }
 
 .semesterHeader {
@@ -44,17 +72,18 @@
   align-items: center;
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 2px solid #1976d2;
+  border-bottom: 2px solid var(--primary);
 }
 
 .semesterHeader h4 {
   margin: 0;
-  color: #1976d2;
+  color: var(--primary);
+  font-weight: 700;
 }
 
 .credits {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: bold;
 }
 
@@ -65,31 +94,45 @@
 }
 
 .courseCard {
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
   padding: 10px;
-  background: #fafafa;
-  transition: transform 0.2s;
+  background: var(--card-bg);
+  transition: all 0.2s ease;
 }
 
 .courseCard:hover {
   transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+}
+
+@media (prefers-color-scheme: dark) {
+  .courseCard:hover {
+    box-shadow: 0 4px 16px rgba(0, 255, 204, 0.2);
+  }
+
+  .favoriteCard {
+    border: 2px solid #9333ea;
+  }
+  
 }
 
 .courseCode {
   font-weight: bold;
-  color: #1976d2;
+  color: var(--primary);
   margin-bottom: 4px;
+  font-size: 14px;
 }
 
 .courseName {
   font-size: 13px;
-  color: #333;
+  color: var(--text);
   margin-bottom: 4px;
+  line-height: 1.4;
 }
 
 .courseCredits {
   font-size: 12px;
-  color: #666;
+  color: var(--text-secondary);
 }
