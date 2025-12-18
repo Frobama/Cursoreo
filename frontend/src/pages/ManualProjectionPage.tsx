@@ -180,7 +180,7 @@ const ManualProjectionPage = () => {
         ramosPlannerFormat,
         inscriptedSet,
         approvedSet,
-        maxCreditsPerSemester
+        maxAbsoluteCredits
       );
 
       if (errors.length > 0) {

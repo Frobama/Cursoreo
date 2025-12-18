@@ -290,7 +290,9 @@ export function planSemesters(
   
     let credits = 0;  
     const thisSemester: Ramo[] = [];  
+    const normalLimit = 30;
   
+    // Primera pasada: llenar hasta 30 créditos (límite normal)
     for (const r of candidates) {  
       if (scheduled.has(r.codigo) || approvedSet.has(r.codigo)) continue;  
   
@@ -298,10 +300,29 @@ export function planSemesters(
       const unmet = prereqs.some(p => !(approvedSet.has(p) || scheduledBefore.has(p)));  
       if (unmet) continue;  
   
-      if (credits + r.creditos > maxCreditsPerSemester) continue;  
-      thisSemester.push(r);  
-      scheduled.add(r.codigo);  
-      credits += r.creditos;  
+      if (credits + r.creditos <= normalLimit) {
+        thisSemester.push(r);  
+        scheduled.add(r.codigo);  
+        credits += r.creditos;  
+      }
+    }
+
+    // Segunda pasada: intentar agregar 1 ramo más con sobrecupo (30-35 créditos)
+    if (credits < normalLimit) {
+      for (const r of candidates) {  
+        if (scheduled.has(r.codigo) || approvedSet.has(r.codigo)) continue;  
+    
+        const prereqs = normalizePrereqs(r.prereq);  
+        const unmet = prereqs.some(p => !(approvedSet.has(p) || scheduledBefore.has(p)));  
+        if (unmet) continue;  
+    
+        if (credits + r.creditos <= maxCreditsPerSemester) {
+          thisSemester.push(r);  
+          scheduled.add(r.codigo);  
+          credits += r.creditos;
+          break; // Solo agregar 1 ramo en sobrecupo
+        }
+      }
     }  
   
     if (thisSemester.length === 0) {  
@@ -323,6 +344,9 @@ export function planSemesters(
   
     semester++;  
   }  
+
+  // Fase de balanceo: intentar redistribuir ramos para equilibrar créditos
+  balancePlan(plan, graph, approvedSet, maxCreditsPerSemester);
   
   const remaining: string[] = [];  
   for (const [k] of graph) {  
@@ -330,4 +354,97 @@ export function planSemesters(
   }  
   
   return { plan, remaining, errors };  
+}
+
+/**
+ * Balancea los créditos entre semestres moviendo ramos de semestres sobrecargados
+ * a semestres con menos carga, respetando prerrequisitos.
+ */
+function balancePlan(
+  plan: PlanSemester[], 
+  graph: Map<string, Node>, 
+  approvedSet: Set<string>,
+  maxCreditsPerSemester: number
+): void {
+  if (plan.length < 2) return;
+
+  const normalLimit = 30;
+  const iterations = 3; // Intentar balancear múltiples veces
+
+  for (let iter = 0; iter < iterations; iter++) {
+    let changed = false;
+
+    for (let i = 0; i < plan.length - 1; i++) {
+      const currentSem = plan[i];
+      const nextSem = plan[i + 1];
+
+      // Si el semestre actual está en sobrecupo y el siguiente tiene espacio
+      if (currentSem.totalCredits > normalLimit && nextSem.totalCredits < normalLimit) {
+        // Buscar ramos que se puedan mover al siguiente semestre
+        const movableCourses = currentSem.courses
+          .filter(course => {
+            // Verificar si todos los dependientes del ramo están en semestres posteriores
+            const node = graph.get(course.codigo);
+            if (!node) return false;
+
+            // Obtener todos los ramos ya programados hasta el siguiente semestre (inclusive)
+            const scheduledUntilNext = new Set<string>();
+            approvedSet.forEach(c => scheduledUntilNext.add(c));
+            for (let j = 0; j <= i + 1; j++) {
+              plan[j].courses.forEach(c => {
+                if (c.codigo !== course.codigo) {
+                  scheduledUntilNext.add(c.codigo);
+                }
+              });
+            }
+
+            // Verificar prerrequisitos del ramo (deben estar antes del semestre actual)
+            const prereqs = normalizePrereqs(course.prereq);
+            const prereqsMet = prereqs.every(p => {
+              const scheduledUntilCurrent = new Set<string>();
+              approvedSet.forEach(c => scheduledUntilCurrent.add(c));
+              for (let j = 0; j < i; j++) {
+                plan[j].courses.forEach(c => scheduledUntilCurrent.add(c.codigo));
+              }
+              return approvedSet.has(p) || scheduledUntilCurrent.has(p);
+            });
+
+            if (!prereqsMet) return false;
+
+            // Verificar que ningún ramo en el semestre siguiente dependa de este
+            const hasDepInNext = nextSem.courses.some(nextCourse => {
+              const nextPrereqs = normalizePrereqs(nextCourse.prereq);
+              return nextPrereqs.includes(course.codigo);
+            });
+
+            return !hasDepInNext;
+          })
+          .sort((a, b) => a.creditos - b.creditos); // Ordenar por créditos ascendente
+
+        // Intentar mover el ramo más pequeño que mejore el balance
+        for (const course of movableCourses) {
+          const newCurrentCredits = currentSem.totalCredits - course.creditos;
+          const newNextCredits = nextSem.totalCredits + course.creditos;
+
+          // Verificar que el movimiento mejore el balance y no exceda límites
+          if (newNextCredits <= maxCreditsPerSemester && 
+              newNextCredits <= normalLimit + 5 && // No sobrecargar demasiado el siguiente
+              Math.abs(newCurrentCredits - newNextCredits) < Math.abs(currentSem.totalCredits - nextSem.totalCredits)) {
+            
+            // Mover el ramo
+            currentSem.courses = currentSem.courses.filter(c => c.codigo !== course.codigo);
+            currentSem.totalCredits = newCurrentCredits;
+            nextSem.courses.push(course);
+            nextSem.totalCredits = newNextCredits;
+            changed = true;
+            
+            console.log(`⚖️ Balanceando: Moviendo ${course.codigo} de S${i+1} (${currentSem.totalCredits}→${newCurrentCredits}) a S${i+2} (${nextSem.totalCredits}→${newNextCredits})`);
+            break;
+          }
+        }
+      }
+    }
+
+    if (!changed) break; // Si no hubo cambios, terminar
+  }
 }  
