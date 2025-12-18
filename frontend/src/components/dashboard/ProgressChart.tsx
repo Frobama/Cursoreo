@@ -138,7 +138,7 @@ const ProgressChart: React.FC<ProgressChartProps> = ({
                   <div
                     className={styles.periodFill}
                     style={{ 
-                      width: `${(item.creditos / totalCreditos) * 100}%`,
+                      width: `${item.porcentaje}%`,
                       animationDelay: `${index * 0.1}s`
                     }}
                   ></div>
